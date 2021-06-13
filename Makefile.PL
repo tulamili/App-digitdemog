@@ -6,6 +6,5 @@ WriteMakefile (
   EXE_FILES => [ 'digitdemog' , 'strgroup' ] ,
   AUTHOR => 'Toshiyuki SHIMONO (bin4tsv at gmail.com)' , 
   LICENSE => 'perl_5' 
-
 ) ;
  

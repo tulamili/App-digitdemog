@@ -1,5 +1,5 @@
 package App::digitdemog ; 
-our $VERSION = '0.050" ; 
+our $VERSION = '0.050' ; 
 our $DATE = '2021-06-13T17:55+09:00' ; 
 
 =encoding utf8
@@ -35,3 +35,5 @@ strgourp --help
 =cut
 
 1 ;
+
+
