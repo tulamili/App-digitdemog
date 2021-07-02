@@ -1,7 +1,6 @@
 #!/usr/bin/perl
 use 5.014 ; use strict ; use warnings ;  # the functions requires 5.10 for "state", 5.14 for srand. 
 use Getopt::Std ; getopts '.12$:=p:q:u:L:R:S', \my%o ;  
-use Math::Trig qw/pi/ ; # 5.4から
 use Scalar::Util qw/looks_like_number/ ; # 5.7.3から
 use Term::ANSIColor qw/:constants color/ ;  $Term::ANSIColor::AUTORESET = 1 ;
 use Time::HiRes qw/sleep usleep gettimeofday tv_interval/ ; # 5.7.3から
