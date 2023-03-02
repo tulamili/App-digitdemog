@@ -57,7 +57,10 @@ sub blanks ( ) {
   }
 }
 
-# 長さ毎に数えるモード:
+##
+## 長さ毎に数えるモード:
+## 
+
 sub bylen ( ) { 
   my $header = <> if $o{'='} ; 
   my %freq ; # 同じ行が来たかどうかの判定に使う。数が集計される。
@@ -93,8 +96,9 @@ sub bylen ( ) {
   }
 }
 
-
+##
 ## 普通のモードと(-.の場合に)さらにに詳しく分析する機能
+##
 
 sub uniq (@) {my %h;map { $h{$_}++ == 0 ? $_ : () } @_ } # List::MoreUtils から
 sub majority (@) {my%h;$h{$_}++for@_;my$m=max values%h;first{$h{$_}==$m}keys%h} # リストから最も成分の多いものをさらにひとつだけ選ぶ.
@@ -149,13 +153,16 @@ sub normal ( ) {
   my @chars = sort {length $a <=> length $b or $a cmp $b } grep{$_ ne $o{'$'}} keys %S1 ; 
   push @chars , $o{'$'} ; 
   for ( @chars ){ # <-- ソート順には注意したい
-    my @tmp = map { $_ // 0 } @{ $S1{$_} } [ 0 .. $maxlen ] ; 
-    do { my $c=$_ ; @tmp = map{ $P2{ $S2{ "$c-$_" } //''} && $tmp[$_] ? "$tmp[$_]." : $tmp[$_] } 0 .. $#tmp  } ; 
+    my @out = map { $_ // 0 } @{ $S1{$_} } [ 0 .. $maxlen ] ; 
+    # ↓ 数字の後ろにピリオドをつける処理 
+    do { my $c=$_ ; @out = map{ $P2{ $S2{ "$c-$_" } //''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; 
     s/(^\')|(\'$)//g if $optq0 ; # シングルクォーテーションによる囲みを外す
-    say join "\t" , @tmp , YELLOW BOLD $_ ;
+    push @out , YELLOW BOLD $_ ; 
+    do { my $c = substr $_,1,1 ; push @out, sprintf 'U+%X', ord $c } if $_ ne $o{'$'} ;
+    say join "\t" , @out ;
   }
 }
-
+#sprintf "U+%X %s:\t%d\n", ord ($_) , $_ , 
 
 ## ヘルプの扱い
 sub VERSION_MESSAGE { } # --version でこの関数が使われる。
