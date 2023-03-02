@@ -17,6 +17,7 @@ use Encode qw [ decode_utf8 ] ;
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
 getopts '.1$:=q:u:L:R:S', \my%o ;  
+my @e2 = map { qr/$_/ }  @e ;  # あらかじめ正規表現として先にコンパイルすることで高速化。
 
 #$SIG{INT} = sub { & info ; exit 130 } ;
 my $strime0 = [ gettimeofday ] ;
@@ -114,7 +115,8 @@ sub normal ( ) {
     for my $pos ( 0 .. $#chars ) {
       my $char = $chars [ $pos ] ; # 実際の文字(列)。  (パターンにはまだ分類していない。)
       my $cp  ; # どのパターンまたは文字として認識するか。(分類されたパターンなのである。)
-      $char =~ /$_/ and $cp = $_ and last for @e ; # ++位置重要。
+      #$char =~ /$_/ and $cp = $_ and last for @e ; # ++位置重要。 <-- - 時間が掛かるかも。
+      $char =~ $e2[$_] and $cp = $e[$_] and last for 0..$#e ; # ++位置重要。 <-- - 時間が掛かるかも。
       $cp //= "'$chars[$pos]'" ; # 前行の処理で当てはまらない場合。クォーテーションを付加するようにした。    # chars を縮めてcp
       $S1 { $cp } { $pos } ++ ; 
       $S2 { "$cp-$pos" } .= "$.+" if $o{'.'} ; # <-- $S2{..}で、その「文字」がその桁で現れた、「行番号集合」L が結果的に生成される。
