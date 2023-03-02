@@ -15,7 +15,7 @@ use Time::HiRes qw/sleep usleep gettimeofday tv_interval/ ; # 5.7.3から
 use List::Util qw[ max first sum0 ] ; 
 use Encode ;
 
-GetOptions 'e=s' => \my@e ; 
+GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
 getopts '.1$:=q:u:L:R:S', \my%o ;  
 
 #$SIG{INT} = sub { & info ; exit 130 } ;
@@ -31,31 +31,9 @@ $o{'$'} //= '$' ;  # 文字の終端を表す記号
 binmode STDOUT, 'utf8' unless $optu0 ;
 
 sub main () ; 
-* main = $oL2 || $oL4 ? * bylen : $o{S} ? * blanks : * normal ; # <-- mainの定義はここである。
+* main = $oL2 || $oL4 ? * bylen : * normal ; # <-- mainの定義はここである。
 & main ; 
 exit 0 ;
-
-##
-## どんな種類の空白かを文字コードと共に数えるモード :
-##
-sub blanks ( ) { 
-  my $header = <> if $o{'='} ; 
-  my %freq ; # 同じ行が来たかどうかの判定に使う。数が集計される。
-  my %counts ;
-
-  while ( <> ) { 
-    chomp ; 
-    s/\r$// unless $optw0 ;
-    next if $o{1} && $freq{$_} ++ ; 
-    $_ = decode_utf8 $_ unless $optu0 ; 
-    my @blanks = m/[[:blank:]]/g ; # 各行の空白を検出 cf. perlrecharclass　perlunicode (Unicode文字プロパティ)
-    $counts { $_ } ++ for @blanks ; 
-  }
-
-  for ( sort keys %counts ) { 
-    print  sprintf "U+%X %s:\t%d\n", ord ($_) , $_ , $counts { $_ } ; 
-  }
-}
 
 ##
 ## 長さ毎に数えるモード:
@@ -198,7 +176,6 @@ digitdist
 オプション : 
    --help  : このオンラインヘルプを表示する。
 
-
   入力の扱い方 : 
    -=     : 先頭行(1行目)を読み飛ばす
    -1     : データで全く同じ行が2回以上来たら、読み飛ばす。(-L2と-L4と-.の指定時は適用されない。)
@@ -208,14 +185,11 @@ digitdist
   動作モードの変更 : 
    -L2    ; 文字列長毎に、文字列の最小値と最大値を取り出す。両者が一致する場合は、後者を空文字列にする。
    -L4    ; 文字列長毎に、文字列の最小値と最大値の他に、最初に現れたもの、最後に現れたものも表示する。
-   -S     ; 空白文字を分類して数える。(* 長音文字も対応したい。少画数の文字も集計したい。) 
 
   出力へ影響するオプション : 
    -q 0   : 出力で文字をシングルクォーテーションで囲まない。# 廃止 --> (-L2と-L4指定時に適用。)   
    -.     : 出力表の値で "同じ数." と表示された値は、同じ入力の(改行文字で区切られた)文字列に由来することを表す。
    -$ str : 文字列の終端をドルマーク($)として示すが、それを str に変更する。
-
-
 
 開発上のメモ : 
     * 出力する各行のソート順は指定できるようにした方が便利そう。
