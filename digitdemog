@@ -144,18 +144,21 @@ sub normal ( ) {
   push @cps , @e ; 
   push @cps , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } } keys %S1 ; 
   push @cps , $o{'$'} ; 
+  my $take = sub ($$) { return splice @{$_[1]} , 0, $_[0] } ; 
   for my $cp ( @cps ){ # <-- ソート順には注意したい
     my @out = map { $S1{$cp}{$_} // 0 } 0 .. $maxlen ; 
-    my $fst = first { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
+    #my $fst = first { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
+    my @pex = grep { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
+    my @example = map{s/\n$//r } uniq $take->($o{g},[uniq map{@{$G1{$cp}{$_}}}@pex]),$take->($o{g},[uniq map{@{$G2{$cp}{$_}}}@pex])  ;
     my $subtotal = sum0 @out ;  # その文字の出現回数
     do { @out = map{ $P2{$S2{"$cp-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
     do { my $c = substr $cp,1,1 ; push @out, $cp eq $o{'$'} ? 'end' : $om{$cp} ? '---' : sprintf 'U+%X', ord $c } ; # コード
-    my @example = map { $_ =~ s/\n$//r } uniq @{$G1{$cp}{$fst}} , @{$G2{$cp}{$fst}}  ; 
+    #my @example = map { $_ =~ s/\n$//r } uniq @{$G1{$cp}{$fst}} , @{$G2{$cp}{$fst}}  ; 
     $cp = '"\n"' if $cp eq "'\n'" ;  # 改行記号
     $cp = '"\r"' if $cp eq "'\r'" ;  # 改行記号    
     $cp =~ s/(^\')|(\'$)//g if $optq0 ; # シングルクォーテーションによる囲みを外す
     splice @out , @out -1, 0, YELLOW BOLD $cp ; # 最後から2番目に挿入。
-    push @out , $subtotal ; 
+    push @out , YELLOW $subtotal ; 
     #push @out , do{ my $t = \$G{$cp}{$fst} ;($$t->[0]//'1' )=~ s/\n//r }//'' ;
     #push @out , eval{ my $t = \$G{$cp}{$fst} ; my @ary = @{$$t} ; $ary[@ary -1] =~ s/\n//r }  ;
     #push @out , eval{ my $t = \$G{$cp}{$fst} ; join "|" , map { $_ =~ s/\n$//r } @{$$t} }  ;
@@ -212,10 +215,11 @@ digitdist
    -e STR : このオプションは何回も指定できる。STRは正規表現であり、最初のパターンにマッチするものを計数対象にする。
 
   出力へ影響するオプション : 
+   -g N   : (実験的) N個のそれぞれ最初と最後の出現例を出す(重複は省かれる)。未指定だとN=1。各文字の最も左での出現での例(行全体)を出す。
+   -g N.  : 数値にピリオドをつけると、該当する文字の、最も右での出現の例で示す。
+   -g 0   : 例を表示しない。計算が軽くなることが期待できる。
    -q 0   : 出力で文字をシングルクォーテーションで囲まない。# 廃止 --> (-L2と-L4指定時に適用。)   
    -$ str : 文字列の終端をドルマーク($)として示すが、それを str に変更する。
-   -g N   : N=0 で例を出さないことで処理が軽くなる。N個のそれぞれ最初と最後の出現例を出す(重複は省かれる)。未指定だとN=1。各文字の最も左での出現での例(行全体)を出す。
-   -g N.  : 数値にピリオドをつけると、該当する文字の、最も右での出現の例で示す。
 
 開発上のメモ : 
     * 出力する各行のソート順は指定できるようにした方が便利そう。
