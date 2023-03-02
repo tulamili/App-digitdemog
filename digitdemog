@@ -12,7 +12,7 @@ Getopt::Long::Configure qw [ pass_through ] ; # 拾わなかった @ARGV の引�
 use Scalar::Util qw/looks_like_number/ ; # 5.7.3から
 use Term::ANSIColor qw/:constants color/ ;  $Term::ANSIColor::AUTORESET = 1 ;
 use Time::HiRes qw/sleep usleep gettimeofday tv_interval/ ; # 5.7.3から
-use List::Util qw[ max first sum0 ] ; 
+use List::Util qw[ max first sum0 uniq ] ; 
 use Encode qw [ decode_utf8 ] ;
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
@@ -123,7 +123,7 @@ sub normal ( ) {
     $S1{ $o{'$'} } { scalar @chars } ++ ; # 文字列終端記号の足し合わせ
     $maxlen = @chars if $maxlen < @chars ; # 最大長の保管
     $S2{ $o{'$'} . '-' . scalar @chars } .= "$.+" if $o{'.'} ; # 文字列終端記号の足し合わせ
-    do { my $t = \$G{$o{'$'}}{@chars} ; push @{$$t},$_ ; shift @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
+    do { my $t = \$G{$o{'$'}}{@chars} ; push @{$$t},$_ ; pop @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
 
   } # ← 入力読み取り処理の終わり
   if ( $o{'.'} ) {  ## 複雑な処理である↓ # $S1{ .. }　で その「文字」が「各桁」で、何回 (b回) 現れたのか。... # この  ; 「b回」現れた L を S3に保管。
@@ -144,7 +144,7 @@ sub normal ( ) {
   push @cps , $o{'$'} ; 
   for my $cp ( @cps ){ # <-- ソート順には注意したい
     my @out = map { $S1{$cp}{$_} // 0 } 0 .. $maxlen ; 
-    my $fst = first { $out[$_] } 0..$#out ; 
+    my $fst = first { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
     my $subtotal = sum0 @out ;  # その文字の出現回数
     do { @out = map{ $P2{$S2{"$cp-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
     do { my $c = substr $cp,1,1 ; push @out, $cp eq $o{'$'} ? 'end' : $om{$cp} ? '---' : sprintf 'U+%X', ord $c } ; # コード
@@ -206,12 +206,12 @@ digitdist
   実質的な処理に与えるオプション : 
    -.     : 出力表の値で "同じ数." と表示された値は、同じ入力の(改行文字で区切られた)文字列に由来することを表す。
    -e STR : このオプションは何回も指定できる。STRは正規表現であり、最初のパターンにマッチするものを計数対象にする。
-            (この -e をいくつも使うと、スピードが遅くなるので注意。)
 
   出力へ影響するオプション : 
    -q 0   : 出力で文字をシングルクォーテーションで囲まない。# 廃止 --> (-L2と-L4指定時に適用。)   
    -$ str : 文字列の終端をドルマーク($)として示すが、それを str に変更する。
    -g N   : N=0 で例を出さないことで処理が軽くなる。N個の例を出す。未指定だとN=1。各文字の最も左での出現での例(行全体)を出す。
+   -g N.  : 数値にピリオドをつけると、該当する文字の、最も右での出現の例で示す。
 
 開発上のメモ : 
     * 出力する各行のソート順は指定できるようにした方が便利そう。
