@@ -50,7 +50,7 @@ sub bylen ( ) {
     chomp ;
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
-    $freq{$_}++ ;#next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
+    next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
     my $len = length $_ ; 
     $Lfrq{$len} ++ ;
     $M{$len}[0] = $_ if ! defined $M{$len}[0] || $M{$len}[0] gt $_ ; 
@@ -97,20 +97,20 @@ sub majority2 ( @ ) { # いろんな値がやってくる。最も頻繁な頻�
 
 sub normal ( ) { 
 
+  my %freq ; # 同じ行が来たかどうかの判定に使う。数が集計される。
   my %S1 ; # $S1{$cp}{$pos} のように使う。 出現回数の集計表
   my %S2 ; # $S2{ "$cp-$pos" } = "行番号+行番号+...行番号+" 
   my %S3 ; # @ { $S3{ FREQ } } によって、頻度FREQ回現れるような あらゆる $cp のそれぞれについて、どの行番号集合 だったかを 、貯める。
   my %P2 ; # $P2{$c-$p}が真ならピリオドを付ける
   my $maxlen = 0 ; # 文字列の最大長
-  my %freq ; # 同じ行が来たかどうかの判定に使う。数が集計される。
   my $header = <> if $o{'='} ; 
   my $patSplit = @e ? '(' . (join '|' , @e, '.') . ')' :  '' ; # split で割るためのパターンの設定。
 
   while ( <> ) { 
     #chomp ; # \n にマッチさせる可能性があるため。しかし、^ にマッチさせて集計したいときどうしたら良いだろうか?
+    next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
-    $freq{$_} ++ ;
     my @chars = grep { $_ ne '' } split /$patSplit/o , $_ , -1 ; # <-- - 区切る
     for my $pos ( 0 .. $#chars ) {
       my $char = $chars [ $pos ] ; # 実際の文字(列)。  (パターンにはまだ分類していない。)
