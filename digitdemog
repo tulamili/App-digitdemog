@@ -1,4 +1,7 @@
 #!/usr/bin/perl
+
+# このプログラムの作成者 : 下野寿之 bin4tsv@gmail.com
+
 use 5.014 ; use strict ; use warnings ;  # the functions requires 5.10 for "state", 5.14 for srand. 
 use Getopt::Std ; getopts '.12$:=p:q:u:L:R:S', \my%o ;  
 use Scalar::Util qw/looks_like_number/ ; # 5.7.3から
@@ -165,6 +168,7 @@ sub HELP_MESSAGE {
 =head1
 
   digitdist 
+
     改行区切りの値に対して，先頭から$n$桁目にどんな文字が現れたかを集計する。
     (出力表は縦は出現した文字で、$n$が増えると右方向の、クロス集計表が出力される。)
     -L が指定されると、文字列長ごとの、文字列の最小値と最大値が出力される。

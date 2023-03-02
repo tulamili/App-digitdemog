@@ -1,12 +1,12 @@
 package App::digitdemog ; 
-our $VERSION = '0.061' ; 
-our $DATE = '2021-07-02T22:49+09:00' ; 
+our $VERSION = '0.062' ; 
+our $DATE = '2023-03-02T12:24+09:00' ; 
 
 =encoding utf8
 
 =head1 NAME
 
-App::digitdemog
+App::digitdemog -- 各行の文字列について、左からの桁ごとにどんな文字が現れたかをクロス表で表示。
 
 =head1 SYNOPSIS
 
