@@ -107,7 +107,7 @@ sub normal ( ) {
   my $patSplit = @e ? '(' . (join '|' , @e, '.') . ')' :  '' ; # split で割るためのパターンの設定。
 
   while ( <> ) { 
-    chomp ;
+    #chomp ; # \n にマッチさせる可能性があるため。しかし、^ にマッチさせて集計したいときどうしたら良いだろうか?
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
     $freq{$_} ++ ;
@@ -147,7 +147,9 @@ sub normal ( ) {
     my $subtotal = sum0 @out ;  # その文字の出現回数
     do { @out = map{ $P2{$S2{"$cp-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
     do { my $c = substr $cp,1,1 ; push @out, $cp eq $o{'$'} ? 'end' : $om{$cp} ? '---' : sprintf 'U+%X', ord $c } ; # コード
-    s/(^\')|(\'$)//g if $optq0 ; # シングルクォーテーションによる囲みを外す
+    $cp = '"\n"' if $cp eq "'\n'" ;  # 改行記号
+    $cp = '"\r"' if $cp eq "'\r'" ;  # 改行記号    
+    $cp =~ s/(^\')|(\'$)//g if $optq0 ; # シングルクォーテーションによる囲みを外す
     splice @out , @out -1, 0, YELLOW BOLD $cp ; # 最後から2番目に挿入。
     push @out , $subtotal ; 
     say join "\t" , @out ;
