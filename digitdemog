@@ -5,41 +5,19 @@
 use 5.030 ; 
 use warnings ; 
 use Getopt::Std ;
-#=head1
 use Getopt::Long qw [ GetOptions ] ; # GetOptionsFromArray ] ;
-#use Getopt::Long qw [ GetOptions :config posix_default gnu_compat] ; 
-#Getopt::Long::Configure qw [ auto_help ] ; #  
 Getopt::Long::Configure qw [ bundling ] ; #  1文字のオプションに対して有効。ずらずらつなげられる。
-#Getopt::Long::Configure qw [ gnu_compat ] ; # -opt=value が使えるようになる (?)
 Getopt::Long::Configure qw [ no_ignore_case ] ; # 大文字と小文字を区別する。
-# Getopt::Long::Configure qw [ posix_default ] ; # auto_abbrev とか permute といった設定が軒並みオフ
 Getopt::Long::Configure qw [ pass_through ] ; # 拾わなかった @ARGV の引数を残してくれるっぽい。posix_defaultの後で書くこと(!)。
-#Getopt::Long::Configure qw [ permute ] ; # require_order の逆?
-#=cut
 use Scalar::Util qw/looks_like_number/ ; # 5.7.3から
 use Term::ANSIColor qw/:constants color/ ;  $Term::ANSIColor::AUTORESET = 1 ;
 use Time::HiRes qw/sleep usleep gettimeofday tv_interval/ ; # 5.7.3から
 use List::Util qw[ max first ] ; 
 use Encode ;
 
-my %o ; 
-=head1
-GetOptions (
-  1 => \$o{1} , 
-  2 => \$o{2} , 
-  'p=s' => \$o{p} , 
-  'q=s' => \$o{q} , 
-  'u=s' => \$o{u} , 
-  'L=s' => \$o{L} , 
-  'R=s' => \$o{R} , 
-  'S' => \$o{S} , 
-   #T => \$o{'T'} 
-) ; 
-=cut
-getopts '.$:=', \%o ;  # 記号をオプションに使うには、Getopt::Longは対応していない。
-GetOptionsFromArray ( \%o , qw [ 1 2 p=s q=s u=s L=s R=s S] ) ; 
-#getopts '.12$:=p:q:u:L:R:S', \my%o ;  
-
+GetOptions 'e=s' => \my@e ; 
+getopts '.12$:=p:q:u:L:R:S', \my%o ;  
+say "@e" ;exit ;
 #$SIG{INT} = sub { & info ; exit 130 } ;
 my $strime0 = [ gettimeofday ] ;
 my $optu0 = defined $o{u} && $o{u} eq 0 ; 
