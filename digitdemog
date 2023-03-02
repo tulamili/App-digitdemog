@@ -156,13 +156,12 @@ sub normal ( ) {
     my @out = map { $_ // 0 } @{ $S1{$_} } [ 0 .. $maxlen ] ; 
     # ↓ 数字の後ろにピリオドをつける処理 
     do { my $c=$_ ; @out = map{ $P2{ $S2{ "$c-$_" } //''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; 
+    do { my $c = substr $_,1,1 ; push @out, $_ ne $o{'$'} ? sprintf 'U+%X', ord $c : 'end' } ; 
     s/(^\')|(\'$)//g if $optq0 ; # シングルクォーテーションによる囲みを外す
-    push @out , YELLOW BOLD $_ ; 
-    do { my $c = substr $_,1,1 ; push @out, sprintf 'U+%X', ord $c } if $_ ne $o{'$'} ;
+    splice @out , @out -1, 0, YELLOW BOLD $_ ; 
     say join "\t" , @out ;
   }
 }
-#sprintf "U+%X %s:\t%d\n", ord ($_) , $_ , 
 
 ## ヘルプの扱い
 sub VERSION_MESSAGE { } # --version でこの関数が使われる。
