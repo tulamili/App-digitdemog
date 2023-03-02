@@ -16,7 +16,7 @@ use List::Util qw[ max first sum0 ] ;
 use Encode ;
 
 GetOptions 'e=s' => \my@e ; 
-getopts '.1$:=p:q:u:L:R:S', \my%o ;  
+getopts '.1$:=q:u:L:R:S', \my%o ;  
 
 #$SIG{INT} = sub { & info ; exit 130 } ;
 my $strime0 = [ gettimeofday ] ;
@@ -27,7 +27,7 @@ my $oL2 = ($o{L}//'') eq 2 ; # $optL2 は長すぎるので、ちょっと特例
 my $oL4 = ($o{L}//'') eq 4 ; 
 
 $o{'$'} //= '$' ;  # 文字の終端を表す記号
-$o{p} //= '' ;  # 文字を切り分けるパターン。正規表現
+#$o{p} //= '' ;  # 文字を切り分けるパターン。正規表現
 binmode STDOUT, 'utf8' unless $optu0 ;
 
 sub main () ; 
@@ -122,7 +122,7 @@ sub normal ( ) {
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
     $freq{$_} ++ ;
-    my @c = split /$o{p}/o , $_ , 0 ; # <-- - 区切る
+    my @c = split //o , $_ , 0 ; # <-- - 区切る
     $S1{ qq['$c[$_]'] }[ $_ ] ++ for 0 .. $#c ; # <-- クォーテーションを付加するようにした。    
     $S1{ $o{'$'} } [ @c ] ++ ; # 文字列終端記号の足し合わせ
     $maxlen = @c if $maxlen < @c ; # 最大長の保管
@@ -211,7 +211,6 @@ digitdist
    -S     ; 空白文字を分類して数える。(* 長音文字も対応したい。少画数の文字も集計したい。) 
 
   出力へ影響するオプション : 
-   -p str : 正規表現によるパターンの指定。 '^(....)(...)(.)$' 等を指定する。
    -q 0   : 出力で文字をシングルクォーテーションで囲まない。# 廃止 --> (-L2と-L4指定時に適用。)   
    -.     : 出力表の値で "同じ数." と表示された値は、同じ入力の(改行文字で区切られた)文字列に由来することを表す。
    -$ str : 文字列の終端をドルマーク($)として示すが、それを str に変更する。
