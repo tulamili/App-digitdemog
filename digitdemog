@@ -12,7 +12,7 @@ Getopt::Long::Configure qw [ pass_through ] ; # 拾わなかった @ARGV の引�
 use Scalar::Util qw/looks_like_number/ ; # 5.7.3から
 use Term::ANSIColor qw/:constants color/ ;  $Term::ANSIColor::AUTORESET = 1 ;
 use Time::HiRes qw/sleep usleep gettimeofday tv_interval/ ; # 5.7.3から
-use List::Util qw[ max first ] ; 
+use List::Util qw[ max first sum0 ] ; 
 use Encode ;
 
 GetOptions 'e=s' => \my@e ; 
@@ -149,16 +149,18 @@ sub normal ( ) {
   }
 
   # 出力
-  say join "\t" , map {UNDERLINE YELLOW $_ } 0 .. $maxlen , 'char' ; # 行頭の出力
+  say join "\t" , map {UNDERLINE YELLOW $_ } 0 .. $maxlen , 'char' , 'code' , 'freq'; # 行頭の出力
   my @chars = sort {length $a <=> length $b or $a cmp $b } grep{$_ ne $o{'$'}} keys %S1 ; 
   push @chars , $o{'$'} ; 
   for ( @chars ){ # <-- ソート順には注意したい
     my @out = map { $_ // 0 } @{ $S1{$_} } [ 0 .. $maxlen ] ; 
+    my $subtotal = sum0 @out ;  # その文字の出現回数
     # ↓ 数字の後ろにピリオドをつける処理 
     do { my $c=$_ ; @out = map{ $P2{ $S2{ "$c-$_" } //''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; 
     do { my $c = substr $_,1,1 ; push @out, $_ ne $o{'$'} ? sprintf 'U+%X', ord $c : 'end' } ; 
     s/(^\')|(\'$)//g if $optq0 ; # シングルクォーテーションによる囲みを外す
-    splice @out , @out -1, 0, YELLOW BOLD $_ ; 
+    splice @out , @out -1, 0, YELLOW BOLD $_ ; # 最後から2番目に挿入。
+    push @out , $subtotal ; 
     say join "\t" , @out ;
   }
 }
