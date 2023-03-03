@@ -151,7 +151,7 @@ sub normal ( ) {
     my @out = map { $S1{$cp}{$_} // 0 } 0 .. $maxlen ; 
     #my $fst = first { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
     my @pex = grep { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
-    my @example = map{s/\n$//r } uniq $take->($o{g},[uniq map{@{$G1{$cp}{$_}}}@pex]),$take->($o{g},[uniq map{@{$G2{$cp}{$_}}}@pex])  ;
+    my @example = map{s/\n$//r } uniq $take->($o{g},[uniq map{@{$G1{$cp}{$_}}}@pex]),$take->($o{g},[uniq map{@{$G2{$cp}{$_}}}@pex]) if $o{g} ;
     my $subtotal = sum0 @out ;  # その文字の出現回数
     do { @out = map{ $P2{$S2{"$cp-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
     do { my $c = substr $cp,1,1 ; push @out, $cp eq $o{'$'} ? 'end' : $om{$cp} ? '---' : sprintf 'U+%02X', ord $c } ; # コード
