@@ -16,7 +16,7 @@ use List::Util qw[ max first sum0 uniq ] ;
 use Encode qw [ decode_utf8 ] ;
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
-getopts '.1$:=g:q:u:L:R:S', \my%o ;  
+getopts '.1$:=g:q:u:w:L:R:S', \my%o ;  
 my @e2 = map { qr/$_/ }  @e ;  # あらかじめ正規表現として先にコンパイルすることで高速化。
 
 #$SIG{INT} = sub { & info ; exit 130 } ;
