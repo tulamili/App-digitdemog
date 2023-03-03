@@ -17,7 +17,7 @@ use Encode qw [ decode_utf8 ] ;
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
 getopts '.1$:=g:q:u:w:L:R:S', \my%o ;  
-my @e2 = map { qr/$_/ }  @e ;  # あらかじめ正規表現として先にコンパイルすることで高速化。
+my @e2 = map { qr/$_/x }  @e ;  # あらかじめ正規表現として先にコンパイルすることで高速化。
 
 #$SIG{INT} = sub { & info ; exit 130 } ;
 $o{g} //= 1 ;
@@ -103,14 +103,16 @@ sub normal ( ) {
   my %G2  ; # @{ $G { $cp } { $pos } } で 行の具体例を格納。 最後の行の方の例を示す。
   my $maxlen = 0 ; # 文字列の最大長
   my $header = <> if $o{'='} ; 
-  my $patSplit = @e ? '(' . (join '|' , @e, '.') . ')' :  '' ; # split で割るためのパターンの設定。
+  #my $patSplit = @e ? '(' . (join '|' , @e, '.') . ')' :  '' ; # split で割るためのパターンの設定。
+  my $patSplit = @e ? do{ '(' . (join '|' , @e2, '.') . ')' } :  qr//o ; # split で割るためのパターンの設定。
 
   while ( <> ) { 
     #chomp ; # \n にマッチさせる可能性があるため。しかし、^ にマッチさせて集計したいときどうしたら良いだろうか?
     next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
-    my @chars = grep { $_ ne '' } split /$patSplit/o , $_ , -1 ; # <-- - 区切る
+    #my @chars = grep { $_ ne '' } split /$patSplit/ox , $_ , -1 ; # <-- - 区切る
+    my @chars = grep { $_ ne '' } split qr/$patSplit/o , $_ , -1 ; # <-- - 区切る
     for my $pos ( 0 .. $#chars ) {
       my $char = $chars [ $pos ] ; # 実際の文字(列)。  (パターンにはまだ分類していない。)
       my $cp  ; # どのパターンまたは文字として認識するか。(分類されたパターンなのである。)
