@@ -87,12 +87,12 @@ sub majority2 ( @ ) { # いろんな値がやってくる。最も頻繁な頻�
 sub main_normal ( ) { 
 
   my %freq ; # 同じ行が来たかどうかの判定に使う。数が集計される。
-  my %S1 ; # $S1{$cp}{$pos} のように使う。 出現回数の集計表
-  my %S2 ; # $S2{ "$cp-$pos" } = "行番号+行番号+...行番号+" 
-  my %S3 ; # @ { $S3{ FREQ } } によって、頻度FREQ回現れるような あらゆる $cp のそれぞれについて、どの行番号集合 だったかを 、貯める。
+  my %S1 ; # $S1{$v}{$pos} のように使う。 出現回数の集計表
+  my %S2 ; # $S2{ "$v-$pos" } = "行番号+行番号+...行番号+" 
+  my %S3 ; # @ { $S3{ FREQ } } によって、頻度FREQ回現れるような あらゆる $v のそれぞれについて、どの行番号集合 だったかを 、貯める。
   my %P2 ; # $P2{$c-$p}が真ならピリオドを付ける
-  my %G1  ; # @{ $G { $cp } { $pos } } で 行の具体例を格納。 
-  my %G2  ; # @{ $G { $cp } { $pos } } で 行の具体例を格納。 最後の行の方の例を示す。
+  my %G1  ; # @{ $G { $v } { $pos } } で 行の具体例を格納。 
+  my %G2  ; # @{ $G { $v } { $pos } } で 行の具体例を格納。 最後の行の方の例を示す。
   my $maxlen = 0 ; # 文字列の最大長
   my $header = <> if $o{'='} ; 
   my $patSplit = @e ? do{ '(' . (join '|' , @e2, '.') . ')' } :  qr//o ; # split で割るためのパターンの設定。
@@ -105,13 +105,13 @@ sub main_normal ( ) {
     my @chars = grep { $_ ne '' } split qr/$patSplit/o , $_ , -1 ; # <-- - 区切る
     for my $pos ( 0 .. $#chars ) {
       my $char = $chars [ $pos ] ; # 実際の文字(列)。  (パターンにはまだ分類していない。)
-      my $cp  ; # どのパターンまたは文字として認識するか。(分類されたパターンなのである。)
-      $char =~ $e2[$_] and $cp = $e[$_] and last for 0..$#e ; # ++位置重要。 
-      $cp //= "'$chars[$pos]'" ; # 前行の処理で当てはまらない場合。クォーテーションを付加するようにした。
-      $S1 { $cp } { $pos } ++ ; 
-      $S2 { "$cp-$pos" } .= "$.+" if $o{'.'} ; # <-- $S2{..}で、その「文字」がその桁で現れた、「行番号集合」L が結果的に生成される。
-      do { my $t = \$G1{$cp}{$pos} ; push @{$$t},$_ ; pop   @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
-      do { my $t = \$G2{$cp}{$pos} ; push @{$$t},$_ ; shift @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
+      my $v  ; # どのパターンまたは文字として認識するか。(分類されたパターンなのである。)
+      $char =~ $e2[$_] and $v = $e[$_] and last for 0..$#e ; # ++位置重要。 
+      $v //= "'$chars[$pos]'" ; # 前行の処理で当てはまらない場合。クォーテーションを付加するようにした。
+      $S1 { $v } { $pos } ++ ; 
+      $S2 { "$v-$pos" } .= "$.+" if $o{'.'} ; # <-- $S2{..}で、その「文字」がその桁で現れた、「行番号集合」L が結果的に生成される。
+      do { my $t = \$G1{$v}{$pos} ; push @{$$t},$_ ; pop   @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
+      do { my $t = \$G2{$v}{$pos} ; push @{$$t},$_ ; shift @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
     }
     $S1{ $o{'$'} } { scalar @chars } ++ ; # 文字列終端記号の足し合わせ
     $maxlen = @chars if $maxlen < @chars ; # 最大長の保管
@@ -120,8 +120,8 @@ sub main_normal ( ) {
     do { my $t = \$G2{$o{'$'}}{@chars} ; push @{$$t},$_ ; shift @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
   } # ← 入力読み取り処理の終わり
   if ( $o{'.'} ) {  ## 複雑な処理である↓ # $S1{ .. }　で その「文字」が「各桁」で、何回 (b回) 現れたのか。... # この  ; 「b回」現れた L を S3に保管。
-    for my $cp ( keys %S1 ){ # ここの $cp は 文字と言うよりパターンを示す。'a'とか [1-3]とか。ここでは「文字」と呼ぶ。
-      push @{  $S3 { $S1{$cp}{$_} }  }, $S2{"$cp-$_"} for keys %{ $S1{$cp} } ; 
+    for my $v ( keys %S1 ){ # ここの $v は 文字と言うよりパターンを示す。'a'とか [1-3]とか。ここでは「文字」と呼ぶ。
+      push @{  $S3 { $S1{$v}{$_} }  }, $S2{"$v-$_"} for keys %{ $S1{$v} } ; 
     } 
     for( keys %S3 ){ # 各「文字」が各桁で何回現れたか(頻度) の 数 それぞれに対して
       my $mostFreq = majority2 @{ $S3{$_} }  ; # 行番号集合L を考えて、そういうLで最も頻度の高いものを取り出す。
@@ -131,24 +131,24 @@ sub main_normal ( ) {
   # 出力
   say join "\t" , map { UNDERLINE YELLOW $_ } 0 .. $maxlen , 'char' , 'code' , 'freq' , $o{g} ? 'example' :() ; # 行頭の出力
   my %om ; $om{$o{'$'}}=1 ; $om{$_}=2 for @e ; # omit する
-  my @cps ; 
-  push @cps , @e ; 
-  push @cps , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } } keys %S1 ; 
-  push @cps , $o{'$'} ; 
+  my @vset ; 
+  push @vset , @e ; 
+  push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } } keys %S1 ; 
+  push @vset , $o{'$'} ; 
   my $take = sub ($$) { return splice @{$_[1]} , 0, $_[0] } ; 
-  for my $cp ( @cps ){ # <-- ソート順には注意したい
-    my @out = map { $S1{$cp}{$_} // 0 } 0 .. $maxlen ; 
+  for my $v ( @vset ){ # <-- ソート順には注意したい
+    my @out = map { $S1{$v}{$_} // 0 } 0 .. $maxlen ; 
     #my $fst = first { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
     my @pex = grep { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
-    my @example = map{s/\n$//r } uniq $take->($o{g},[uniq map{@{$G1{$cp}{$_}}}@pex]),$take->($o{g},[uniq map{@{$G2{$cp}{$_}}}@pex]) if $o{g} ;
+    my @example = map{s/\n$//r } uniq $take->($o{g},[uniq map{@{$G1{$v}{$_}}}@pex]),$take->($o{g},[uniq map{@{$G2{$v}{$_}}}@pex]) if $o{g} ;
     my $subtotal = sum0 @out ;  # その文字の出現回数
-    do { @out = map{ $P2{$S2{"$cp-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
+    do { @out = map{ $P2{$S2{"$v-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
     @out = map { $_ eq 0 ? $o{0} : $_ } @out if defined $o{0} ;  # ゼロの置換
-    do { my $c = substr $cp,1,1 ; push @out, $cp eq $o{'$'} ? 'end' : $om{$cp} ? '---' : sprintf 'U+%02X', ord $c } ; # コード
-    $cp = '"\n"' if $cp eq "'\n'" ;  # 改行記号
-    $cp = '"\r"' if $cp eq "'\r'" ;  # 改行記号    
-    $cp =~ s/(^\')|(\'$)//g if $optq0 ; # シングルクォーテーションによる囲みを外す
-    splice @out , @out -1, 0, YELLOW BOLD $cp ; # 最後から2番目に挿入。
+    do { my $c = substr $v,1,1 ; push @out, $v eq $o{'$'} ? 'end' : $om{$v} ? '---' : sprintf 'U+%02X', ord $c } ; # コード
+    $v = '"\n"' if $v eq "'\n'" ;  # 改行記号
+    $v = '"\r"' if $v eq "'\r'" ;  # 改行記号    
+    $v =~ s/(^\')|(\'$)//g if $optq0 ; # シングルクォーテーションによる囲みを外す
+    splice @out , @out -1, 0, YELLOW BOLD $v ; # 最後から2番目に挿入。
     push @out , YELLOW $subtotal ; 
     push @out, join '|', @example ;
     say join "\t" , @out ;
@@ -218,8 +218,6 @@ digitdist
     * メモリを無駄に消費してないか、考えたい。%S1とか%S2とか%S3とか%Gとか。
     * 行の終端記号が、二重に被るリスクあり。
     * -e で指定したパターンに該当する文字列についても、そのうち代表例(最初の出現の1文字目など)に対して、文字コードを出力するようにしたい。
-
-    * cp を全て vに (適切に)変えたい。 charcter pattern は後で混乱するので、value としたい。 q (quest) も考えたが。
 
 =end JapaneseManual
 
