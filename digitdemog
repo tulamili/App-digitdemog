@@ -157,7 +157,7 @@ sub main_normal ( ) {
     }  
   }
   # 出力
-  say join "\t" , map { UNDERLINE YELLOW $_ } 0 .. $maxlen , 'char' , 'code' , 'freq' , $o{g} ? 'example' :() ; # 行頭の出力
+  say join "\t" , map { UNDERLINE YELLOW $_ } 0 .. $maxlen , 'char' , 'code' , 'freq' , $o{g} ? 'example|..|example' :() ; # 行頭の出力
   my %vcate ; $vcate{$_} = 2 for @e ; # omit する
   my @vset ; # 表示する値の配列。順番は、 (1). 引数に渡された正規表現いくつか (2). 非cntrl文字 (3). cntrl文字(4). 各行の終わり
   push @vset , @e[ 1 .. $#e ] ; # (1).
