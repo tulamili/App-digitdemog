@@ -17,7 +17,7 @@ use Encode qw [ decode_utf8 ] ;
 use utf8 ; 
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
-getopts '.0:1$:=bg:n:q:u:w:L:R:S', \my%o ;  
+getopts '.0:1$:=b:g:n:q:u:w:L:R:S', \my%o ;  
 
 $o{g} //= 1 ;
 my $strime0 = [ gettimeofday ] ;
@@ -122,8 +122,8 @@ sub main_normal ( ) {
       $v //= "'$vvec[$pos]'" ; # 前行の処理で当てはまらない場合。クォーテーションを付加するようにした。
       $S1 { $v } { $pos } ++ ; 
       $S2 { "$v-$pos" } .= "$.+" if $o{'.'} ; # <-- $S2{..}で、その「文字」がその桁で現れた、「行番号集合」L が結果的に生成される。
-      do { my $t = \$G1{$v}{$pos} ; push @{$$t},$_ ; pop   @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
-      do { my $t = \$G2{$v}{$pos} ; push @{$$t},$_ ; shift @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
+      do { my $r = \$G1{$v}{$pos} ; push @{$$r},$_ ; pop   @{$$r} if @{$$r} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
+      do { my $r = \$G2{$v}{$pos} ; push @{$$r},$_ ; shift @{$$r} if @{$$r} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
     }
   } # ← 入力読み取り処理の終わり
   if ( $o{'.'} ) {  ## 複雑な処理である↓ # $S1{ .. }　で その「文字」が「各桁」で、何回 (b回) 現れたのか。... # この  ; 「b回」現れた L を S3に保管。
@@ -142,19 +142,20 @@ sub main_normal ( ) {
   push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } and ! /[[:cntrl:]]/ } keys %S1 ; 
   push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } and /[[:cntrl:]]/ } keys %S1 ; 
   push @vset , @e ; 
-  #push @vset , $o{'$'} ; 
-  my $take = sub ($$) { return splice @{$_[1]} , 0, $_[0] } ; 
+  my $take = sub ($$) { splice @{$_[1]} , 0, $_[0] } ; # 配列参照arg2からその配列の先頭arg1個取ってくる。
+  my $take2 = sub ($$$) { uniq $take->($_[0],$_[1]) , $take->($_[0],$_[2]) } ;# 配列参照2個(arg2,arg3)から、それぞれarg1個取って、uniq する。
+
   for my $v ( @vset ){ # <-- ソート順には注意したい
     my @out = map { $S1{$v}{$_} // 0 } 0 .. $maxlen ; 
-    my @pex = grep { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
-    my @example = map{s/\n$//r } uniq $take->($o{g},[uniq map{@{$G1{$v}{$_}}}@pex]),$take->($o{g},[uniq map{@{$G2{$v}{$_}}}@pex]) if $o{g} ;
-    @example = map{ backslash $_ , q['] } @example if $o{b} ;
+    my @pvec = grep { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ;  # 何桁目を見るか、そして、優先的にどこから見るか。
+    #my @example = map{s/\n$//r } uniq $take->($o{g},[uniq map{@{$G1{$v}{$_}}}@pvec]),$take->($o{g},[uniq map{@{$G2{$v}{$_}}}@pvec]) if $o{g} ;
+    my @example = uniq $take->($o{g},[uniq map{@{$G1{$v}{$_}}}@pvec]),$take->($o{g},[uniq map{@{$G2{$v}{$_}}}@pvec]) if $o{g} ;
+    @example = map{ backslash $_ , q['] } @example unless 0 eq ($o{b}//'') ; # -b0の指定が無ければ、改行などの文字をエスケープする。
     my $subtotal = sum0 @out ;  # その文字の出現回数 -- @out をさらに加工する前にここで取得。
     do { @out = map{ $P2{$S2{"$v-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
     @out = map { $_ eq 0 ? $o{0} : $_ } @out if defined $o{0} ;  # 頻度値がゼロの場合の置換
     my $code = do { my $c = substr $v,1,1 ; $v eq $eol ? 'end' : $om{$v} ? '---' : sprintf 'U+%02X', ord $c } ; # 文字コード取得。$vの加工前にここで処理。
     $v = $o{'$'} if $v eq $eol ; 
-    #do{ my $c = eval qq["$_"] ; $v =~ s/$c/$_/ and $v =~ s/'/"/g } for qw[\a \n \r \f \t \e] ; # エスケープシーケンス ; alarm, .. f:改ページ e:escape 
     $v = backslash $v , q["] ; 
     push @out , (YELLOW BOLD $v) , $code , (YELLOW $subtotal) ; 
     push @out, join '|', @example ;
@@ -214,7 +215,7 @@ digitdist
   出力へ影響するオプション : 
    -0 str : 出力のゼロを別の文字列strに置換する。
    -$ str : 文字列の終端をドルマーク($)として示すが、それを str に変更する。
-   -b     : 「例」(examle)の文字列で必要に応じてバックスラッシュを追加して、読み易くする。
+   -b 0   : 通常は「例」(examle)の文字列で必要に応じてバックスラッシュを追加して、読み易くするが、それを止める。
    -g N   : (実験的) N個のそれぞれ最初と最後の出現例を出す(重複は省かれる)。未指定だとN=1。各文字の最も左での出現での例(行全体)を出す。
    -g N.  : 数値にピリオドをつけると、該当する文字の、最も右での出現の例で示す。
    -g 0   : 例を表示しない。計算が軽くなることが期待できる。
@@ -225,10 +226,8 @@ digitdist
     * -Lの場合に、-g N の指定により、最小値N個、最大値N個を取り出せるようにしても良いかも。
     * -Lの場合に出力する出現文字列について、出現頻度も出力出来る様にしたい。
     * メモリを無駄に消費してないか、考えたい。%S1とか%S2とか%S3とか%Gとか。
-    * 行の終端記号が、二重に被るリスクあり。
     * -e で指定したパターンに該当する文字列についても、そのうち代表例(最初の出現の1文字目など)に対して、文字コードを出力するようにしたい。
 
-    * タブなどのコントロール文字は"\t"などに変換する
     * [[:ascii:]]以外の文字の-e指定に対応する
     * take の当たりを短く
     * エスケープシーケンスは6種類だけの処理で良かろうか?
