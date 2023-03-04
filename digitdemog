@@ -18,7 +18,6 @@ use utf8 ;
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
 getopts '.0:1$:=g:n:q:u:w:L:R:S', \my%o ;  
-my @e2 = map { qr/$_/x }  @e ;  # あらかじめ正規表現として先にコンパイルすることで高速化。
 
 $o{g} //= 1 ;
 my $strime0 = [ gettimeofday ] ;
@@ -95,29 +94,31 @@ sub main_normal ( ) {
   my %G2  ; # @{ $G { $v } { $pos } } で 行の具体例を格納。 最後の行の方の例を示す。
   my $maxlen = 0 ; # 文字列の最大長
   my $header = <> if $o{'='} ; 
+
+  my $eol = "EOL" . int rand 1e8 ; # 各行の終わりを示す。
+  push @e , $eol ;
+  my @e2 = map { qr/$_/x }  @e ;  # あらかじめ正規表現として先にコンパイルすることで高速化。
   my $patSplit = @e ? do{ '(' . (join '|' , @e2, '.') . ')' } :  qr//o ; # split で割るためのパターンの設定。
+
 
   while ( <> ) { 
     chomp if 0 eq ($o{n}//'') ; # \n にマッチさせる可能性があるため。しかし、^ にマッチさせて集計したいときどうしたら良いだろうか?
     next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
-    my @chars = grep { $_ ne '' } split qr/$patSplit/o , $_ , -1 ; # <-- - 区切る
-    for my $pos ( 0 .. $#chars ) {
-      my $char = $chars [ $pos ] ; # 実際の文字(列)。  (パターンにはまだ分類していない。)
+    my @vvec = grep { $_ ne '' } split qr/$patSplit/o , $_ , -1 ; # <-- - 区切る
+    $maxlen = @vvec if $maxlen < @vvec ; # 最大長の保管
+    push @vvec , $eol ; 
+    for my $pos ( 0 .. $#vvec ) {
+      my $char = $vvec [ $pos ] ; # 実際の文字(列)。  (パターンにはまだ分類していない。)
       my $v  ; # どのパターンまたは文字として認識するか。(分類されたパターンなのである。)
       $char =~ $e2[$_] and $v = $e[$_] and last for 0..$#e ; # ++位置重要。 
-      $v //= "'$chars[$pos]'" ; # 前行の処理で当てはまらない場合。クォーテーションを付加するようにした。
+      $v //= "'$vvec[$pos]'" ; # 前行の処理で当てはまらない場合。クォーテーションを付加するようにした。
       $S1 { $v } { $pos } ++ ; 
       $S2 { "$v-$pos" } .= "$.+" if $o{'.'} ; # <-- $S2{..}で、その「文字」がその桁で現れた、「行番号集合」L が結果的に生成される。
       do { my $t = \$G1{$v}{$pos} ; push @{$$t},$_ ; pop   @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
       do { my $t = \$G2{$v}{$pos} ; push @{$$t},$_ ; shift @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
     }
-    $S1{ $o{'$'} } { scalar @chars } ++ ; # 文字列終端記号の足し合わせ
-    $maxlen = @chars if $maxlen < @chars ; # 最大長の保管
-    $S2{ $o{'$'} . '-' . scalar @chars } .= "$.+" if $o{'.'} ; # 文字列終端記号の足し合わせ
-    do { my $t = \$G1{$o{'$'}}{@chars} ; push @{$$t},$_ ; pop   @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
-    do { my $t = \$G2{$o{'$'}}{@chars} ; push @{$$t},$_ ; shift @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
   } # ← 入力読み取り処理の終わり
   if ( $o{'.'} ) {  ## 複雑な処理である↓ # $S1{ .. }　で その「文字」が「各桁」で、何回 (b回) 現れたのか。... # この  ; 「b回」現れた L を S3に保管。
     for my $v ( keys %S1 ){ # ここの $v は 文字と言うよりパターンを示す。'a'とか [1-3]とか。ここでは「文字」と呼ぶ。
@@ -132,24 +133,22 @@ sub main_normal ( ) {
   say join "\t" , map { UNDERLINE YELLOW $_ } 0 .. $maxlen , 'char' , 'code' , 'freq' , $o{g} ? 'example' :() ; # 行頭の出力
   my %om ; $om{$o{'$'}}=1 ; $om{$_}=2 for @e ; # omit する
   my @vset ; 
+  push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } and ! /[[:cntrl:]]/ } keys %S1 ; 
+  push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } and /[[:cntrl:]]/ } keys %S1 ; 
   push @vset , @e ; 
-  push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } } keys %S1 ; 
-  push @vset , $o{'$'} ; 
+  #push @vset , $o{'$'} ; 
   my $take = sub ($$) { return splice @{$_[1]} , 0, $_[0] } ; 
   for my $v ( @vset ){ # <-- ソート順には注意したい
     my @out = map { $S1{$v}{$_} // 0 } 0 .. $maxlen ; 
-    #my $fst = first { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
     my @pex = grep { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
     my @example = map{s/\n$//r } uniq $take->($o{g},[uniq map{@{$G1{$v}{$_}}}@pex]),$take->($o{g},[uniq map{@{$G2{$v}{$_}}}@pex]) if $o{g} ;
-    my $subtotal = sum0 @out ;  # その文字の出現回数
+    my $subtotal = sum0 @out ;  # その文字の出現回数 -- @out をさらに加工する前にここで取得。
     do { @out = map{ $P2{$S2{"$v-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
-    @out = map { $_ eq 0 ? $o{0} : $_ } @out if defined $o{0} ;  # ゼロの置換
-    do { my $c = substr $v,1,1 ; push @out, $v eq $o{'$'} ? 'end' : $om{$v} ? '---' : sprintf 'U+%02X', ord $c } ; # コード
-    $v = '"\n"' if $v eq "'\n'" ;  # 改行記号
-    $v = '"\r"' if $v eq "'\r'" ;  # 改行記号    
-    $v =~ s/(^\')|(\'$)//g if $optq0 ; # シングルクォーテーションによる囲みを外す
-    splice @out , @out -1, 0, YELLOW BOLD $v ; # 最後から2番目に挿入。
-    push @out , YELLOW $subtotal ; 
+    @out = map { $_ eq 0 ? $o{0} : $_ } @out if defined $o{0} ;  # 頻度値がゼロの場合の置換
+    my $code = do { my $c = substr $v,1,1 ; $v eq $eol ? 'end' : $om{$v} ? '---' : sprintf 'U+%02X', ord $c } ; # 文字コード取得。$vの加工前にここで処理。
+    $v = $o{'$'} if $v eq $eol ; 
+    do{ my $c = eval qq["$_"] ; $v =~ s/$c/$_/ and $v =~ s/'/"/g } for qw[\a \n \r \f \t \e] ; # エスケープシーケンス ; alarm, .. f:改ページ e:escape 
+    push @out , (YELLOW BOLD $v) , $code , (YELLOW $subtotal) ; 
     push @out, join '|', @example ;
     say join "\t" , @out ;
   }
@@ -218,6 +217,11 @@ digitdist
     * メモリを無駄に消費してないか、考えたい。%S1とか%S2とか%S3とか%Gとか。
     * 行の終端記号が、二重に被るリスクあり。
     * -e で指定したパターンに該当する文字列についても、そのうち代表例(最初の出現の1文字目など)に対して、文字コードを出力するようにしたい。
+
+    * タブなどのコントロール文字は"\t"などに変換する
+    * [[:ascii:]]以外の文字の-e指定に対応する
+    * take の当たりを短く
+    * エスケープシーケンスは6種類だけの処理で良かろうか?
 
 =end JapaneseManual
 
