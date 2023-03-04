@@ -12,12 +12,12 @@ Getopt::Long::Configure qw [ pass_through ] ; # 拾わなかった @ARGV の引�
 use Scalar::Util qw/looks_like_number/ ; # 5.7.3から
 use Term::ANSIColor qw/:constants color/ ;  $Term::ANSIColor::AUTORESET = 1 ;
 use Time::HiRes qw/sleep usleep gettimeofday tv_interval/ ; # 5.7.3から
-use List::Util qw[ max first sum0 uniq ] ; 
+use List::Util qw[ max min first sum0 uniq ] ; 
 use Encode qw [ decode_utf8 ] ;
 use utf8 ; 
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
-getopts '.0:1$:=b:g:n:q:u:w:L:R:S', \my%o ;  
+getopts '.:0:1$:=b:g:n:q:u:w:L:R:S', \my%o ;  
 
 $o{g} //= 1 ;
 my $strime0 = [ gettimeofday ] ;
@@ -28,6 +28,7 @@ my $oL2 = ($o{L}//'') eq 2 ; # $optL2 は長すぎるので、ちょっと特例
 my $oL4 = ($o{L}//'') eq 4 ; 
 @e = map { decode_utf8 $_ } @e unless $optu0 ; 
 
+$o{'.'} //= 1 ;
 $o{'$'} //= '$' ;  # 文字の終端を表す記号
 binmode STDOUT, 'utf8' unless $optu0 ;
 
@@ -75,12 +76,18 @@ sub bylen ( ) {
 ## 普通のモードと(-.の場合に)さらにに詳しく分析する機能
 ##
 
-sub majority2 ( @ ) { # いろんな値がやってくる。最も頻繁な頻度を持つ値の中から、(ランダムに) 1個返す。ただし、その頻度が2未満なら返さない。
+sub majority2 ( @ ) { 
+  # いろんな値がやってくる。最も頻繁な頻度を持つ値の中から、(ランダムに) 1個返す。ただし、その頻度が2未満なら返さない。
+  # この関数の仕様変更。頻度2以上のものについて、多い順番に返す。
   my %h ; # ヒストグラム
   ++ $h { $_ } for ( @_ ) ;
   my $m = max values %h ; 
-  ++ $m if $m == 1;  # 頻度の最大値が1なら、次の処理で空列を返すようにする。
-  return first { $h {$_} == $m } keys %h
+  $h{$_} == 1 and delete $h{ $_ } for keys %h ;  #++ $m if $m == 1;  # 頻度の最大値が1なら、次の処理で空列を返すようにする。
+  my %h2 ; 
+  my @out ; 
+  for ( keys %h ) { push @{ $h2{ $h{$_} } } , $_ } 
+  for ( sort { $b <=> $a } keys %h2 ) { push @out , @{ $h2{$_} } } 
+  return @out  ;#first { $h {$_} == $m } keys %h
 } # リストから最も成分の多いものをさらにひとつだけ選ぶ.
 
 sub backslash ($$) { # 制御文字を一部エスケープシーケンスに変化させる。 arg2 は シングルクォーテーションを何に変化させるか。
@@ -131,8 +138,9 @@ sub main_normal ( ) {
       push @{  $S3 { $S1{$v}{$_} }  }, $S2{$v}{$_} for keys %{ $S1{$v} } ; 
     } 
     for( keys %S3 ){ # 各「文字」が各桁で何回現れたか(頻度) の 数 それぞれに対して
-      my $mostFreq = majority2 @{ $S3{$_} }  ; # 行番号集合L を考えて、そういうLで最も頻度の高いものを取り出す。
-      $mark{ $mostFreq } = '.' if defined $mostFreq ;
+      my @pcand  = majority2 @{ $S3{$_} }  ; # 行番号集合L を考えて、そういうLで最も頻度の高いものを取り出す。
+      grep { $mark { $pcand [$_] } = '.' . ( '0' x $_ ) } 0 .. min $#pcand , $o{'.'} -1 if @pcand ; 
+      #$mark{ $mostFreq } = '.' if defined $mostFreq ;
     }  
   }
   # 出力
@@ -152,7 +160,7 @@ sub main_normal ( ) {
     @example = map{ backslash $_ , q['] } @example unless 0 eq ($o{b}//'') ; # -b0の指定が無ければ、改行などの文字をエスケープする。
     my $subtotal = sum0 @out ;  # その文字の出現回数 -- @out をさらに加工する前にここで取得。
     #do { @out = map{ $mark{$S2{$v}{$_}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
-    do { $out[$_] .= $mark{ $S2{$v}{$_} } // '' if $out[$_] } for 0 .. $#out ; # 数字の後ろにピリオド付加
+    do { $out[$_] .= $mark{ $S2{$v}{$_} // '' } // '' if $out[$_] } for 0 .. $#out ; # 数字の後ろにピリオド付加
     @out = map { $_ eq 0 ? $o{0} : $_ } @out if defined $o{0} ;  # 頻度値がゼロの場合の置換
     my $code = do { my $c = substr $v,1,1 ; $v eq $eol ? 'end' : $om{$v} ? '---' : sprintf 'U+%02X', ord $c } ; # 文字コード取得。$vの加工前にここで処理。
     $v = $o{'$'} if $v eq $eol ; 
@@ -209,7 +217,8 @@ digitdist
    -L4    ; 文字列長毎に、文字列の最小値と最大値の他に、最初に現れたもの、最後に現れたものも表示する。
 
   実質的な処理に与えるオプション : 
-   -.     : 出力表の値で "同じ数." と表示された値は、同じ入力の(改行文字で区切られた)文字列に由来することを表す。
+   -. 0    : 通常出力表の値で "同じ数." と表示された値は、全く共通する行に由来することを示すが、その出力の仕方を抑制。
+   -. N    : 出力表の異なる頻度の値ごとに、どれが全く共通する行に由来するのかN個まで表示。未指定なら1。頻度の後にピリオドが付き、さらに0が最大N-1個付く。
    -e STR : このオプションは何回も指定できる。STRは正規表現であり、最初のパターンにマッチするものを計数対象にする。
 
   出力へ影響するオプション : 
@@ -227,7 +236,7 @@ digitdist
     * 出力する各行のソート順は指定できるようにした方が便利そう。
     * メモリを無駄に消費してないか、考えたい。%S1とか%S2とか%S3とか%Gとか。
     * -e で指定したパターンに該当する文字列についても、そのうち代表例(最初の出現の1文字目など)に対して、文字コードを出力するようにしたい。
-    * [[:ascii:]]以外の文字の-e指定に対応する
+    * [[:ascii:]]以外の文字の-e指定に対応する (アスキー文字以外に対応する)
     * エスケープシーケンスは6種類だけの処理で良かろうか?
     * -gの指定で、区切り文字も指定可能にしたい。
 
