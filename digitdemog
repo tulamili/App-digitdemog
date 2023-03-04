@@ -76,8 +76,8 @@ sub bylen ( ) {
 ##
 
 sub majority2 ( @ ) { 
-  # いろんな値がやってくる。最も頻繁な頻度を持つ値の中から、(ランダムに) 1個返す。ただし、その頻度が2未満なら返さない。
-  # この関数の仕様変更。頻度2以上のものについて、多い順番に返す。
+  # いろんな値を配列で受け取り、頻度2以上のものについて、多い順番に返す。
+  # 最初は、最も頻繁な頻度を持つ値の中から、(ランダムに) 1個返していた。
   my %h ; # ヒストグラム
   ++ $h { $_ } for ( @_ ) ;
   my $m = max values %h ; 
@@ -91,13 +91,13 @@ sub majority2 ( @ ) {
 
 sub backslash ($$) { # 制御文字を一部エスケープシーケンスに変化させる。 arg2 は シングルクォーテーションを何に変化させるか。
   do{ my $c = eval qq["$_"] ; $_[0] =~ s/$c/$_/g and $_[0] =~ s/'/$_[1]/g } for qw[\a \n \r \f \t \e] ; 
-  return $_[0] ;
+  return $_[0] ; # 
 }
 
 sub stock ($$$$) { # arg2が参照する配列で arg1 個蓄えるが、arg3の値を後ろに追加。さらに、arg4の0/1に応じて、pop/shift(後ろ出し/前出し)する。
   my @ary = uniq @{ ${$_[1]} }, $_[2] ; 
   @{ ${$_[1]} } = splice @ary, ( $_[3] ? scalar @ary - $_[0] : 0 ) , $_[0] ;
-} ; 
+} ;  # 各行の例をストックするための関数
 
 sub main_normal ( ) { 
 
@@ -134,15 +134,13 @@ sub main_normal ( ) {
     next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
-    my @vvec = grep { $_ ne '' } split qr/$patSplit/o , $_ , -1 ; # <-- - 区切る
+    my @vvec = grep { $_ ne '' } split $patSplit , $_ , 0 ; # <-- - 区切る
     $maxlen = @vvec if $maxlen < @vvec ; # 最大長の保管
-    push @vvec , $eol ; 
+    push @vvec , $eol ; # 各行をバラバラにした後に、$eolを最後に追加。
     for my $pos ( 0 .. $#vvec ) {
       my $char = $vvec [ $pos ] ; # 実際の文字(列)。  (パターンにはまだ分類していない。)
       my $v  ; # どのパターンまたは文字として認識するか。(分類されたパターンなのである。)
-      #print  CYAN $#e2 ; say CYAN  " " ,$#e ;
-      $char =~ $e2[$_] and $v = $e[$_] and last for 0..$#e ; # ++位置重要。 
-      #do { $char =~ $e2[$_] and $v = $e[$_] and last for 0..$#e } if @e ; # ++位置重要。 
+      $char =~ $eqr[$_] and do{ $v = $e[$_] ; last } for 0..$#e ; # 指定したパターンの数が多いと遅くなるであろう。頻度の高いパターンを先に置くと早くなる。
       $v //= "'$vvec[$pos]'" ; # 前行の処理で当てはまらない場合。クォーテーションを付加するようにした。
       $S1 { $v } { $pos } ++ ; 
       $S2 { $v } { $pos } .= "$.+" if $o{'.'} ; # <-- $S2{..}で、その「文字」がその桁で現れた、「行番号集合」L が結果的に生成される。
@@ -160,11 +158,12 @@ sub main_normal ( ) {
   }
   # 出力
   say join "\t" , map { UNDERLINE YELLOW $_ } 0 .. $maxlen , 'char' , 'code' , 'freq' , $o{g} ? 'example' :() ; # 行頭の出力
-  my %om ; $om{$o{'$'}}=1 ; $om{$_}=2 for @e ; # omit する
-  my @vset ; 
-  push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } and /[[:^cntrl:]]/ } keys %S1 ; 
-  push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } and /[[:cntrl:]]/ } keys %S1 ; 
-  push @vset , @e ; 
+  my %vcate ; $vcate{$_} = 2 for @e ; # omit する
+  my @vset ; # 表示する値の配列。順番は、 (1). 引数に渡された正規表現いくつか (2). 非cntrl文字 (3). cntrl文字(4). 各行の終わり
+  push @vset , @e[ 1 .. $#e ] ; # (1).
+  push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $vcate { $_ } and ! /[[:cntrl:]]/ } keys %S1 ; # (2)
+  push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $vcate { $_ } and /[[:cntrl:]]/ } keys %S1 ; #(3)
+  push @vset , $e[ 0 ] ;
   my $take = sub ($$) { splice @{$_[1]} , 0, $_[0] } ; # 配列参照arg2からその配列の先頭arg1個取ってくる。
   my $take2 = sub ($$$) { uniq $take->($_[0],$_[1]) , $take->($_[0],$_[2]) } ;# 配列参照2個(arg2,arg3)から、それぞれarg1個取って、uniq する。
 
@@ -174,18 +173,16 @@ sub main_normal ( ) {
     my @example = $take2 -> ( $o{g} , map { my $way = $_ ; [ map{ @{$Gs{$v}{$_}[ $way ]} } @pvec ] } 0,1 ) if $o{g} ;
     @example = map{ backslash $_ , q['] } @example unless 0 eq ($o{b}//'') ; # -b0の指定が無ければ、改行などの文字をエスケープする。
     my $subtotal = sum0 @out ;  # その文字の出現回数 -- @out をさらに加工する前にここで取得。
-    #do { @out = map{ $mark{$S2{$v}{$_}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
     do { $out[$_] .= $mark{ $S2{$v}{$_} // '' } // '' if $out[$_] } for 0 .. $#out ; # 数字の後ろにピリオド付加
     @out = map { $_ eq 0 ? $o{0} : $_ } @out if defined $o{0} ;  # 頻度値がゼロの場合の置換
-    my $code = do { my $c = substr $v,1,1 ; $v eq $eol ? 'end' : $om{$v} ? '---' : sprintf 'U+%02X', ord $c } ; # 文字コード取得。$vの加工前にここで処理。
-    $v = $o{'$'} if $v eq $eol ; 
+    my $code = do { my $c = substr $v,1,1 ; $v eq "$eol\$" ? 'end' : $vcate{$v} ? '---' : sprintf 'U+%02X', ord $c } ; # 文字コード取得。$vの加工前にここで処理。
+    $v = $o{'$'} if $v eq "$eol\$" ; 
     $v = backslash $v , q["] ; 
     push @out , (YELLOW BOLD $v) , $code , (YELLOW $subtotal) ; 
     push @out, join '|', @example ;
     say join "\t" , @out ;
   }
 }
-
 
 ## ヘルプの扱い
 sub VERSION_MESSAGE { } # --version でこの関数が使われる。
