@@ -102,14 +102,12 @@ sub main_normal ( ) {
     next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
-    #my @chars = grep { $_ ne '' } split /$patSplit/ox , $_ , -1 ; # <-- - 区切る
     my @chars = grep { $_ ne '' } split qr/$patSplit/o , $_ , -1 ; # <-- - 区切る
     for my $pos ( 0 .. $#chars ) {
       my $char = $chars [ $pos ] ; # 実際の文字(列)。  (パターンにはまだ分類していない。)
       my $cp  ; # どのパターンまたは文字として認識するか。(分類されたパターンなのである。)
-      #$char =~ /$_/ and $cp = $_ and last for @e ; # ++位置重要。 <-- - 時間が掛かるかも。
-      $char =~ $e2[$_] and $cp = $e[$_] and last for 0..$#e ; # ++位置重要。 <-- - 時間が掛かるかも。
-      $cp //= "'$chars[$pos]'" ; # 前行の処理で当てはまらない場合。クォーテーションを付加するようにした。    # chars を縮めてcp
+      $char =~ $e2[$_] and $cp = $e[$_] and last for 0..$#e ; # ++位置重要。 
+      $cp //= "'$chars[$pos]'" ; # 前行の処理で当てはまらない場合。クォーテーションを付加するようにした。
       $S1 { $cp } { $pos } ++ ; 
       $S2 { "$cp-$pos" } .= "$.+" if $o{'.'} ; # <-- $S2{..}で、その「文字」がその桁で現れた、「行番号集合」L が結果的に生成される。
       do { my $t = \$G1{$cp}{$pos} ; push @{$$t},$_ ; pop   @{$$t} if @{$$t} > $o{g} }  if $o{g}  ; # 改行文字はここでは除去せず
@@ -147,15 +145,11 @@ sub main_normal ( ) {
     do { @out = map{ $P2{$S2{"$cp-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
     @out = map { $_ eq 0 ? $o{0} : $_ } @out if defined $o{0} ;  # ゼロの置換
     do { my $c = substr $cp,1,1 ; push @out, $cp eq $o{'$'} ? 'end' : $om{$cp} ? '---' : sprintf 'U+%02X', ord $c } ; # コード
-    #my @example = map { $_ =~ s/\n$//r } uniq @{$G1{$cp}{$fst}} , @{$G2{$cp}{$fst}}  ; 
     $cp = '"\n"' if $cp eq "'\n'" ;  # 改行記号
     $cp = '"\r"' if $cp eq "'\r'" ;  # 改行記号    
     $cp =~ s/(^\')|(\'$)//g if $optq0 ; # シングルクォーテーションによる囲みを外す
     splice @out , @out -1, 0, YELLOW BOLD $cp ; # 最後から2番目に挿入。
     push @out , YELLOW $subtotal ; 
-    #push @out , do{ my $t = \$G{$cp}{$fst} ;($$t->[0]//'1' )=~ s/\n//r }//'' ;
-    #push @out , eval{ my $t = \$G{$cp}{$fst} ; my @ary = @{$$t} ; $ary[@ary -1] =~ s/\n//r }  ;
-    #push @out , eval{ my $t = \$G{$cp}{$fst} ; join "|" , map { $_ =~ s/\n$//r } @{$$t} }  ;
     push @out, join '|', @example ;
     say join "\t" , @out ;
   }
@@ -224,6 +218,8 @@ digitdist
     * メモリを無駄に消費してないか、考えたい。%S1とか%S2とか%S3とか%Gとか。
     * 行の終端記号が、二重に被るリスクあり。
     * -e で指定したパターンに該当する文字列についても、そのうち代表例(最初の出現の1文字目など)に対して、文字コードを出力するようにしたい。
+
+    * cp を全て vに (適切に)変えたい。 charcter pattern は後で混乱するので、value としたい。 q (quest) も考えたが。
 
 =end JapaneseManual
 
