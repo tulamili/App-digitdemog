@@ -17,7 +17,7 @@ use Encode qw [ decode_utf8 ] ;
 use utf8 ; 
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
-getopts '.0:1$:=g:n:q:u:w:L:R:S', \my%o ;  
+getopts '.0:1$:=bg:n:q:u:w:L:R:S', \my%o ;  
 
 $o{g} //= 1 ;
 my $strime0 = [ gettimeofday ] ;
@@ -83,6 +83,12 @@ sub majority2 ( @ ) { # いろんな値がやってくる。最も頻繁な頻�
   return first { $h {$_} == $m } keys %h
 } # リストから最も成分の多いものをさらにひとつだけ選ぶ.
 
+
+sub backslash ($$) { # 制御文字を一部エスケープシーケンスに変化させる。 arg2 は シングルクォーテーションを何に変化させるか。
+  do{ my $c = eval qq["$_"] ; $_[0] =~ s/$c/$_/g and $_[0] =~ s/'/$_[1]/g } for qw[\a \n \r \f \t \e] ; 
+  return $_[0] ;
+}
+
 sub main_normal ( ) { 
 
   my %freq ; # 同じ行が来たかどうかの判定に使う。数が集計される。
@@ -142,17 +148,20 @@ sub main_normal ( ) {
     my @out = map { $S1{$v}{$_} // 0 } 0 .. $maxlen ; 
     my @pex = grep { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ; 
     my @example = map{s/\n$//r } uniq $take->($o{g},[uniq map{@{$G1{$v}{$_}}}@pex]),$take->($o{g},[uniq map{@{$G2{$v}{$_}}}@pex]) if $o{g} ;
+    @example = map{ backslash $_ , q['] } @example if $o{b} ;
     my $subtotal = sum0 @out ;  # その文字の出現回数 -- @out をさらに加工する前にここで取得。
     do { @out = map{ $P2{$S2{"$v-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
     @out = map { $_ eq 0 ? $o{0} : $_ } @out if defined $o{0} ;  # 頻度値がゼロの場合の置換
     my $code = do { my $c = substr $v,1,1 ; $v eq $eol ? 'end' : $om{$v} ? '---' : sprintf 'U+%02X', ord $c } ; # 文字コード取得。$vの加工前にここで処理。
     $v = $o{'$'} if $v eq $eol ; 
-    do{ my $c = eval qq["$_"] ; $v =~ s/$c/$_/ and $v =~ s/'/"/g } for qw[\a \n \r \f \t \e] ; # エスケープシーケンス ; alarm, .. f:改ページ e:escape 
+    #do{ my $c = eval qq["$_"] ; $v =~ s/$c/$_/ and $v =~ s/'/"/g } for qw[\a \n \r \f \t \e] ; # エスケープシーケンス ; alarm, .. f:改ページ e:escape 
+    $v = backslash $v , q["] ; 
     push @out , (YELLOW BOLD $v) , $code , (YELLOW $subtotal) ; 
     push @out, join '|', @example ;
     say join "\t" , @out ;
   }
 }
+
 
 ## ヘルプの扱い
 sub VERSION_MESSAGE { } # --version でこの関数が使われる。
@@ -203,12 +212,13 @@ digitdist
    -e STR : このオプションは何回も指定できる。STRは正規表現であり、最初のパターンにマッチするものを計数対象にする。
 
   出力へ影響するオプション : 
+   -0 str : 出力のゼロを別の文字列strに置換する。
+   -$ str : 文字列の終端をドルマーク($)として示すが、それを str に変更する。
+   -b     : 「例」(examle)の文字列で必要に応じてバックスラッシュを追加して、読み易くする。
    -g N   : (実験的) N個のそれぞれ最初と最後の出現例を出す(重複は省かれる)。未指定だとN=1。各文字の最も左での出現での例(行全体)を出す。
    -g N.  : 数値にピリオドをつけると、該当する文字の、最も右での出現の例で示す。
    -g 0   : 例を表示しない。計算が軽くなることが期待できる。
    -q 0   : 出力で文字をシングルクォーテーションで囲まない。# 廃止 --> (-L2と-L4指定時に適用。)   
-   -$ str : 文字列の終端をドルマーク($)として示すが、それを str に変更する。
-   -0 str : 出力のゼロを別の文字列strに置換する。
 
 開発上のメモ : 
     * 出力する各行のソート順は指定できるようにした方が便利そう。
@@ -222,6 +232,7 @@ digitdist
     * [[:ascii:]]以外の文字の-e指定に対応する
     * take の当たりを短く
     * エスケープシーケンスは6種類だけの処理で良かろうか?
+    * -gの指定で、区切り文字も指定可能にしたい。
 
 =end JapaneseManual
 
