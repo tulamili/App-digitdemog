@@ -149,7 +149,7 @@ sub main_normal ( ) {
     my @out = map { $S1{$v}{$_} // 0 } 0 .. $maxlen ; 
     my @pvec = grep { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ;  # 何桁目を見るか、そして、優先的にどこから見るか。
     #my @example = map{s/\n$//r } uniq $take->($o{g},[uniq map{@{$G1{$v}{$_}}}@pvec]),$take->($o{g},[uniq map{@{$G2{$v}{$_}}}@pvec]) if $o{g} ;
-    my @example = uniq $take->($o{g},[uniq map{@{$G1{$v}{$_}}}@pvec]),$take->($o{g},[uniq map{@{$G2{$v}{$_}}}@pvec]) if $o{g} ;
+    my @example = $take2 -> ( $o{g} , [ map{@{$G1{$v}{$_}}}@pvec ] , [ map{@{$G2{$v}{$_}}}@pvec ]  ) if $o{g} ;
     @example = map{ backslash $_ , q['] } @example unless 0 eq ($o{b}//'') ; # -b0の指定が無ければ、改行などの文字をエスケープする。
     my $subtotal = sum0 @out ;  # その文字の出現回数 -- @out をさらに加工する前にここで取得。
     do { @out = map{ $P2{$S2{"$v-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
@@ -229,7 +229,6 @@ digitdist
     * -e で指定したパターンに該当する文字列についても、そのうち代表例(最初の出現の1文字目など)に対して、文字コードを出力するようにしたい。
 
     * [[:ascii:]]以外の文字の-e指定に対応する
-    * take の当たりを短く
     * エスケープシーケンスは6種類だけの処理で良かろうか?
     * -gの指定で、区切り文字も指定可能にしたい。
 
