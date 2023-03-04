@@ -14,12 +14,12 @@ use Term::ANSIColor qw/:constants color/ ;  $Term::ANSIColor::AUTORESET = 1 ;
 use Time::HiRes qw/sleep usleep gettimeofday tv_interval/ ; # 5.7.3から
 use List::Util qw[ max first sum0 uniq ] ; 
 use Encode qw [ decode_utf8 ] ;
+use utf8 ; 
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
-getopts '.1$:=g:q:u:w:L:R:S', \my%o ;  
+getopts '.1$:=g:n:q:u:w:L:R:S', \my%o ;  
 my @e2 = map { qr/$_/x }  @e ;  # あらかじめ正規表現として先にコンパイルすることで高速化。
 
-#$SIG{INT} = sub { & info ; exit 130 } ;
 $o{g} //= 1 ;
 my $strime0 = [ gettimeofday ] ;
 my $optu0 = ($o{u}//'') eq 0 ; 
@@ -107,7 +107,7 @@ sub normal ( ) {
   my $patSplit = @e ? do{ '(' . (join '|' , @e2, '.') . ')' } :  qr//o ; # split で割るためのパターンの設定。
 
   while ( <> ) { 
-    #chomp ; # \n にマッチさせる可能性があるため。しかし、^ にマッチさせて集計したいときどうしたら良いだろうか?
+    chomp if 0 eq ($o{n}//'') ; # \n にマッチさせる可能性があるため。しかし、^ にマッチさせて集計したいときどうしたら良いだろうか?
     next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
@@ -205,6 +205,7 @@ digitdist
   入力の扱い方 : 
    -=     : 先頭行(1行目)を読み飛ばす
    -1     : データで全く同じ行が2回以上来たら、読み飛ばす。(-L2と-L4と-.の指定時は適用されない。)
+   -n 0   : 改行文字を除去する(各行を読み取って、通常なら行末の改行文字の様子も出力する)。
    -u 0   : バイナリで処理する(通常は UTF-8で処理をする)
    -w 0   ; 通常は、Windows形式の改行文字が来たらUNIX形式の改行文字に変換しているが、その動作を解除する。
 
