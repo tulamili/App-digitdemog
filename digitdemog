@@ -26,7 +26,7 @@ my $optq0 = ($o{q}//'') eq 0 ;
 my $optw0 = ($o{w}//'') eq 0 ; 
 my $oL2 = ($o{L}//'') eq 2 ; # $optL2 は長すぎるので、ちょっと特例的に短くしてみた
 my $oL4 = ($o{L}//'') eq 4 ; 
-@e = map { decode_utf8 $_ } @e unless $optu0 ; 
+
 
 $o{'.'} //= 1 ;
 $o{'$'} //= '$' ;  # 文字の終端を表す記号
@@ -111,7 +111,16 @@ sub main_normal ( ) {
   my $maxlen = 0 ; # 文字列の最大長
   my $eol = "EOL" . int rand 1e8 ; # 各行の終わりを示す。
   push @e , $eol ;
-  my @e2 = map { qr/$_/x }  @e ;  # あらかじめ正規表現として先にコンパイルすることで高速化。
+
+  @e = map { decode_utf8 $_ } @e unless $optu0  ;
+  my @e2 ; 
+  for ( 0 .. $#e ) { 
+    my @F  = split /([[:^ascii:]])/ , $e[$_] , - 1 ; 
+    grep { $_ =  (sprintf '\x{%02X}', ord $_ ) if m/[[:^ascii:]]/ } @F ;
+    my $p = join '' , @F ;
+    $e2 [ $_ ] = qr/$_/x ; # あらかじめ正規表現として先にコンパイルすることで高速化。
+  }
+  
   my $patSplit = @e ? do{ '(' . (join '|' , @e2, '.') . ')' } :  qr//o ; # split で割るためのパターンの設定。
 
   my $header = <> if $o{'='} ; 
@@ -126,7 +135,9 @@ sub main_normal ( ) {
     for my $pos ( 0 .. $#vvec ) {
       my $char = $vvec [ $pos ] ; # 実際の文字(列)。  (パターンにはまだ分類していない。)
       my $v  ; # どのパターンまたは文字として認識するか。(分類されたパターンなのである。)
+      #print  CYAN $#e2 ; say CYAN  " " ,$#e ;
       $char =~ $e2[$_] and $v = $e[$_] and last for 0..$#e ; # ++位置重要。 
+      #do { $char =~ $e2[$_] and $v = $e[$_] and last for 0..$#e } if @e ; # ++位置重要。 
       $v //= "'$vvec[$pos]'" ; # 前行の処理で当てはまらない場合。クォーテーションを付加するようにした。
       $S1 { $v } { $pos } ++ ; 
       $S2 { $v } { $pos } .= "$.+" if $o{'.'} ; # <-- $S2{..}で、その「文字」がその桁で現れた、「行番号集合」L が結果的に生成される。
@@ -139,15 +150,14 @@ sub main_normal ( ) {
     } 
     for( keys %S3 ){ # 各「文字」が各桁で何回現れたか(頻度) の 数 それぞれに対して
       my @pcand  = majority2 @{ $S3{$_} }  ; # 行番号集合L を考えて、そういうLで最も頻度の高いものを取り出す。
-      grep { $mark { $pcand [$_] } = '.' . ( '0' x $_ ) } 0 .. min $#pcand , $o{'.'} -1 if @pcand ; 
-      #$mark{ $mostFreq } = '.' if defined $mostFreq ;
+      grep { $mark { $pcand [$_] } = '.' . ( '0' x $_ ) } 0 .. min $#pcand , $o{'.'} - 1 if @pcand ; 
     }  
   }
   # 出力
   say join "\t" , map { UNDERLINE YELLOW $_ } 0 .. $maxlen , 'char' , 'code' , 'freq' , $o{g} ? 'example' :() ; # 行頭の出力
   my %om ; $om{$o{'$'}}=1 ; $om{$_}=2 for @e ; # omit する
   my @vset ; 
-  push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } and ! /[[:cntrl:]]/ } keys %S1 ; 
+  push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } and /[[:^cntrl:]]/ } keys %S1 ; 
   push @vset , sort {length $a <=> length $b or $a cmp $b } grep { ! $om { $_ } and /[[:cntrl:]]/ } keys %S1 ; 
   push @vset , @e ; 
   my $take = sub ($$) { splice @{$_[1]} , 0, $_[0] } ; # 配列参照arg2からその配列の先頭arg1個取ってくる。
