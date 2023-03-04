@@ -17,7 +17,7 @@ use Encode qw [ decode_utf8 ] ;
 use utf8 ; 
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
-getopts '.1$:=g:n:q:u:w:L:R:S', \my%o ;  
+getopts '.0:1$:=g:n:q:u:w:L:R:S', \my%o ;  
 my @e2 = map { qr/$_/x }  @e ;  # あらかじめ正規表現として先にコンパイルすることで高速化。
 
 $o{g} //= 1 ;
@@ -30,11 +30,10 @@ my $oL4 = ($o{L}//'') eq 4 ;
 @e = map { decode_utf8 $_ } @e unless $optu0 ; 
 
 $o{'$'} //= '$' ;  # 文字の終端を表す記号
-#$o{p} //= '' ;  # 文字を切り分けるパターン。正規表現
 binmode STDOUT, 'utf8' unless $optu0 ;
 
 sub main () ; 
-* main = $oL2 || $oL4 ? * bylen : * normal ; # <-- mainの定義はここである。
+* main = $oL2 || $oL4 ? * bylen : * main_normal ; # <-- mainの定義はここである。
 & main ; 
 exit 0 ;
 
@@ -59,17 +58,13 @@ sub bylen ( ) {
     next unless $oL4 ; 
     $M{$len}[2] = $_ if ! defined $M{$len}[2] ; 
     $M{$len}[3] = $_ ;
-
   }
-  #for(keys %freq){ say "$_, $freq{$_}"} ; exit 0 ;
   print join ( "\t", map {UNDERLINE $_} qw[length freq minstr maxstr] , $oL4 ? qw[first_str last_str ]:() ) , "\n" ;
   for ( sort { $a <=> $b } keys %M ) {  # 数値 (文字列の長さを表す)でソート 
     my @str = @{ $M{$_} } ;
     my @prt = $optq0 ? @str : map { defined $_ ? qq['$_'] : undef } @str ;
     $prt[1] = DARK '<-- same' if $str[1] eq $str[0] ; 
-    #$str[2] = '' ; #if defined $str[2] and $str[2] eq $str[0] || $str[2] eq $str[1]; 
     $prt[3] = DARK '<-- same' if $oL4 and defined $str[3] and $str[3] eq $str[2] ; #|| $str[3] eq $str[1]; 
-
     for my $p ($oL4? 0..3 : 0..1 )  { 
       $prt[$p] = $prt[$p] . DARK "(" . $freq{ $str[$p] } . ")" if $freq{ $str[$p] } != $Lfrq{$_} ;
     }
@@ -81,18 +76,15 @@ sub bylen ( ) {
 ## 普通のモードと(-.の場合に)さらにに詳しく分析する機能
 ##
 
-#sub uniq (@) {my %h;map { $h{$_}++ == 0 ? $_ : () } @_ } # List::MoreUtils から
-sub majority2 ( @ ) { # いろんな値がやってくる。最も頻繁な頻度を持つ値の中から、(ランダムに) 1個返す。
+sub majority2 ( @ ) { # いろんな値がやってくる。最も頻繁な頻度を持つ値の中から、(ランダムに) 1個返す。ただし、その頻度が2未満なら返さない。
   my %h ; # ヒストグラム
-  for ( @_ ) { 
-    $h { $_ } += 1 ;  # <<-- --
-  }
+  ++ $h { $_ } for ( @_ ) ;
   my $m = max values %h ; 
-  $m ++ if $m == 1;  # <-- - 必要なのか、そうで無いのか、よく分からない。
+  ++ $m if $m == 1;  # 頻度の最大値が1なら、次の処理で空列を返すようにする。
   return first { $h {$_} == $m } keys %h
 } # リストから最も成分の多いものをさらにひとつだけ選ぶ.
 
-sub normal ( ) { 
+sub main_normal ( ) { 
 
   my %freq ; # 同じ行が来たかどうかの判定に使う。数が集計される。
   my %S1 ; # $S1{$cp}{$pos} のように使う。 出現回数の集計表
@@ -103,7 +95,6 @@ sub normal ( ) {
   my %G2  ; # @{ $G { $cp } { $pos } } で 行の具体例を格納。 最後の行の方の例を示す。
   my $maxlen = 0 ; # 文字列の最大長
   my $header = <> if $o{'='} ; 
-  #my $patSplit = @e ? '(' . (join '|' , @e, '.') . ')' :  '' ; # split で割るためのパターンの設定。
   my $patSplit = @e ? do{ '(' . (join '|' , @e2, '.') . ')' } :  qr//o ; # split で割るためのパターンの設定。
 
   while ( <> ) { 
@@ -154,6 +145,7 @@ sub normal ( ) {
     my @example = map{s/\n$//r } uniq $take->($o{g},[uniq map{@{$G1{$cp}{$_}}}@pex]),$take->($o{g},[uniq map{@{$G2{$cp}{$_}}}@pex]) if $o{g} ;
     my $subtotal = sum0 @out ;  # その文字の出現回数
     do { @out = map{ $P2{$S2{"$cp-$_"}//''} && $out[$_] ? "$out[$_]." : $out[$_] } 0 .. $#out  } ; # 数字の後ろにピリオド付加
+    @out = map { $_ eq 0 ? $o{0} : $_ } @out if defined $o{0} ;  # ゼロの置換
     do { my $c = substr $cp,1,1 ; push @out, $cp eq $o{'$'} ? 'end' : $om{$cp} ? '---' : sprintf 'U+%02X', ord $c } ; # コード
     #my @example = map { $_ =~ s/\n$//r } uniq @{$G1{$cp}{$fst}} , @{$G2{$cp}{$fst}}  ; 
     $cp = '"\n"' if $cp eq "'\n'" ;  # 改行記号
@@ -223,6 +215,7 @@ digitdist
    -g 0   : 例を表示しない。計算が軽くなることが期待できる。
    -q 0   : 出力で文字をシングルクォーテーションで囲まない。# 廃止 --> (-L2と-L4指定時に適用。)   
    -$ str : 文字列の終端をドルマーク($)として示すが、それを str に変更する。
+   -0 str : 出力のゼロを別の文字列strに置換する。
 
 開発上のメモ : 
     * 出力する各行のソート順は指定できるようにした方が便利そう。
