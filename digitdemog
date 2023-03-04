@@ -27,7 +27,6 @@ my $optw0 = ($o{w}//'') eq 0 ;
 my $oL2 = ($o{L}//'') eq 2 ; # $optL2 は長すぎるので、ちょっと特例的に短くしてみた
 my $oL4 = ($o{L}//'') eq 4 ; 
 
-
 $o{'.'} //= 1 ;
 $o{'$'} //= '$' ;  # 文字の終端を表す記号
 binmode STDOUT, 'utf8' unless $optu0 ;
@@ -109,19 +108,25 @@ sub main_normal ( ) {
   my %mark ; # $mark{ L } がピリオドをピリオド付ける。 ( -. で使う。)
   my %Gs  ; # @{ $G { $v } { $pos } [ 0 or 1 ] } で 行の具体例を格納。 ( -g で使う。)
   my $maxlen = 0 ; # 文字列の最大長
-  my $eol = "EOL" . int rand 1e8 ; # 各行の終わりを示す。
-  push @e , $eol ;
+  #my $eol = "EOL14776823" ; # . int rand 1e8 ; # 各行の終わりを示す。 EOL41673705
+  my $eol = "EOL" . int rand 8 ; # 各行の終わりを示す。### 0 があると問題無いのに。
+  say CYAN $eol ;
 
   @e = map { decode_utf8 $_ } @e unless $optu0  ;
-  my @e2 ; 
+  unshift @e , "$eol\$" ;  # 正規表現パターン群に $eol を 最初に 追加。<-- - 
+  my @eqr ; # 「e をqrされた 」により名付けた。
+  my @exu ; # 「eにおいて、エスケープ(escape)してユニコード(unicode)で表した部分がある」により名付けた
   for ( 0 .. $#e ) { 
-    my @F  = split /([[:^ascii:]])/ , $e[$_] , - 1 ; 
+    my $eout = $e[$_] =~ s/#.*$//r ; # 正規表現で、コメント#の部分は除去する。
+    my @F  = split /([[:^ascii:]])/o , $eout , 0 ; # パターンで切った最後は空文字列なら切り落とすための0
     grep { $_ =  (sprintf '\x{%02X}', ord $_ ) if m/[[:^ascii:]]/ } @F ;
     my $p = join '' , @F ;
-    $e2 [ $_ ] = qr/$_/x ; # あらかじめ正規表現として先にコンパイルすることで高速化。
+    $eqr [ $_ ] = qr/$p/ ; # あらかじめ正規表現として先にコンパイルすることで高速化。
+    push @exu , $p ;
   }
   
-  my $patSplit = @e ? do{ '(' . (join '|' , @e2, '.') . ')' } :  qr//o ; # split で割るためのパターンの設定。
+  # split で割るためのパターンの設定。
+  my $patSplit = @e ? do{ my$t='('.(join'|',@exu,'.').')';qr/$t/} : qr//o ; # 注: @exuにさらに1文字(.)を追加。さらに括弧でも括っている。
 
   my $header = <> if $o{'='} ; 
   while ( <> ) { 
