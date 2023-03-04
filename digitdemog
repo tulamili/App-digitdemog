@@ -109,7 +109,7 @@ sub main_normal ( ) {
   my %Gs  ; # @{ $G { $v } { $pos } [ 0 or 1 ] } で 行の具体例を格納。 ( -g で使う。)
   my $maxlen = 0 ; # 文字列の最大長
   #my $eol = "EOL14776823" ; # . int rand 1e8 ; # 各行の終わりを示す。 EOL41673705
-  my $eol = "EOL" . int rand 8 ; # 各行の終わりを示す。### 0 があると問題無いのに。
+  my $eol = "EOL" . int rand 8 ; # 各行の終わりを示す。### 0 があると問題無いのに。 saikoro -g10,3 でいろいろ試した。
   say CYAN $eol ;
 
   @e = map { decode_utf8 $_ } @e unless $optu0  ;
