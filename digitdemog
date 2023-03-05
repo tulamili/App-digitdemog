@@ -14,7 +14,7 @@ use Term::ANSIColor qw/:constants color/ ;  $Term::ANSIColor::AUTORESET = 1 ;
 use Time::HiRes qw/sleep usleep gettimeofday tv_interval/ ; # 5.7.3から
 use List::Util qw[ max min first sum0 uniq ] ; 
 use Encode qw [ decode_utf8 ] ;
-use utf8 ; 
+#use utf8 ; 
 
 GetOptions 'e=s' => \my@e , 'width=i' => \my$width ; # -e で指定されたパターンを何個でも拾う。
 #say CYAN $width ; exit ;
@@ -37,6 +37,7 @@ $o{g} //= 1 ; # 例として取り出すために、各頻度に対して何個�
 my $sep = do { my $c = decode_utf8 $o{g} =~s/\d//gr ; $c ne '' ? $c : '|' } ; # 出力表での具体例の区切り文字。
 $o{g} =~ s/\D//g ; 
 $o{g} = 1 if $o{g} eq '' ;
+my $header  ; # -1 が指定されたら読み飛ばしの対象となるが、一応保管。(2次情報として標準エラー出力に出す。)
 
 
 ## -y による頻度のフィルタリングをするための準備 : 
@@ -65,6 +66,7 @@ END {
   my $rl = d3 ($. // 0) ; # read lines
   my $procsec = tv_interval ${ dt_start } ;
   my $out = "$rl line(s) read; "; 
+  $out .= do { chomp $header ; "\"$header\" is the 1st line; " } if defined $header ; 
   $out .= sprintf '%0.6f seconds (digitdemog)', $procsec ; # たまにマイクロ秒単位の$procsecが15桁くらいで表示されるのでsprintf。
   say STDERR BOLD DARK ITALIC CYAN $out ;
 }
@@ -74,7 +76,7 @@ END {
 ## 
 
 sub bylen ( ) { 
-  my $header = <> if $o{'='} ; 
+  $header = <> if $o{'='} ; 
   my %freq ; # 同じ行が来たかどうかの判定に使う。数が集計される。
   my %M ; # 文字列長さごとの文字列最小値と文字列最大値を格納する。
   my %Lfrq ; # 文字列長ごとの頻度
@@ -162,7 +164,7 @@ sub main_normal ( ) {
   # split で割るためのパターンの設定。
   my $piecePattern = @e ? do{ my$t=join'|',@exu,'.','\n';qr/$t/o} : qr//o ; # @exuに1文字(.)と改行文字を追加した。
 
-  my $header = <> if $o{'='} ; 
+  $header = <> if $o{'='} ; 
   while ( <> ) { 
     chomp if 0 eq ($o{n}//'') ; #-n0 で改行文字を除去。
     next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
