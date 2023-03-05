@@ -17,10 +17,10 @@ use Encode qw [ decode_utf8 ] ;
 use utf8 ; 
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
-getopts '.:0:1$:=b:g:n:o:q:u:w:L:R:S', \my%o ;  
+getopts '.:$:0:12:=b:g:n:o:q:u:w:L:R:S', \my%o ;  
 
 $o{o} //= 0 ; # 桁の番号を0から始める ことがデフォルトだが、やはり1から始められるようにした。
-my $strime0 = [ gettimeofday ] ;
+my $dt_start = [ gettimeofday ] ;
 my $optu0 = ($o{u}//'') eq 0 ; 
 my $optq0 = ($o{q}//'') eq 0 ;
 my $optw0 = ($o{w}//'') eq 0 ; 
@@ -29,7 +29,7 @@ my $oL4 = ($o{L}//'') eq 4 ;
 
 # 具体例を指示する -g についての処理
 $o{g} //= 1 ; # 例として取り出すために、各頻度に対して何個異なる例を保持するか。
-my $sep = do { my $c = $o{g} =~s/\d//gr ; $c ne '' ? $c : '|' } ; # 具体例の区切り文字。
+my $sep = do { my $c = $o{g} =~s/\d//gr ; $c ne '' ? $c : '|' } ; # 出力表での具体例の区切り文字。
 $o{g} =~ s/\D//g ; 
 $o{g} = 1 if $o{g} eq '' ;
 
@@ -41,6 +41,16 @@ sub main () ;
 * main = $oL2 || $oL4 ? * bylen : * main_normal ; # <-- mainの定義はここである。
 & main ; 
 exit 0 ;
+
+###
+END {
+  exit if ($o{2}//'') eq 0 ;
+  my $rl = d3 ($. // 0) ; # read lines
+  my $procsec = tv_interval ${ dt_start } ;
+  my $out = "$rl line(s) read; "; 
+  $out .= sprintf '%0.6f seconds (digitdemog)', $procsec ; # たまにマイクロ秒単位の$procsecが15桁くらいで表示されるのでsprintf。
+  say STDERR BOLD DARK ITALIC CYAN $out ;
+}
 
 ##
 ## 長さ毎に数えるモード :  (入力の具体的な値を見るため)
@@ -77,9 +87,7 @@ sub bylen ( ) {
   }
 }
 
-##
-## 普通のモードと(-.の場合に)さらにに詳しく分析する機能
-##
+sub d3 ($) { $_[0] =~ s/(?<=\d)(?=(\d\d\d)+($|\D))/,/gr } ; # 数を3桁区切りに変換する。
 
 sub majority2 ( @ ) { 
   # いろんな値を配列で受け取り、頻度2以上のものについて、多い順番に返す。
@@ -87,7 +95,7 @@ sub majority2 ( @ ) {
   my %h ; # ヒストグラム
   ++ $h { $_ } for ( @_ ) ;
   my $m = max values %h ; 
-  $h{$_} == 1 and delete $h{ $_ } for keys %h ;  #++ $m if $m == 1;  # 頻度の最大値が1なら、次の処理で空列を返すようにする。
+  $h{$_} == 1 and delete $h{$_} for keys %h ;  #++ $m if $m == 1;  # 頻度の最大値が1なら、次の処理で空列を返すようにする。
   my %h2 ; 
   my @out ; 
   for ( keys %h ) { push @{ $h2{ $h{$_} } } , $_ } 
@@ -105,6 +113,10 @@ sub stock ($$$$) { # arg2が参照する配列で arg1 個蓄えるが、arg3の
   @{ ${$_[1]} } = splice @ary, ( $_[3] ? max 0,scalar @ary - $_[0] : 0 ) , $_[0] ;
 } ;  # 各行の例をストックするための関数
 
+##
+## 普通のモードのmain関数
+##
+
 sub main_normal ( ) { 
 
   my %freq ; # 同じ行が来たかどうかの判定に使う。数が集計される。
@@ -114,9 +126,7 @@ sub main_normal ( ) {
   my %mark ; # $mark{ L } がピリオドをピリオド付ける。 ( -. で使う。)
   my %Gs  ; # @{ $G { $v } { $pos } [ 0 or 1 ] } で 行の具体例を格納。 ( -g で使う。)
   my $maxlen = 0 ; # 文字列の最大長
-  #my $eol = "EOL14776823" ; # . int rand 1e8 ; # 各行の終わりを示す。 EOL41673705
-  my $eol = "EOL" . int rand 8 ; # 各行の終わりを示す。### 0 があると問題無いのに。 saikoro -g10,3 でいろいろ試した。
-  # say CYAN $eol ;
+  my $eol = "EOL" . int rand 8 ; # 各行の終わりを示す。## saikoro -g10,3 でいろいろ試した。
 
   @e = map { decode_utf8 $_ } @e unless $optu0  ;
   unshift @e , "$eol\$" ;  # 正規表現パターン群に $eol を 最初に 追加。<-- - 
@@ -132,11 +142,11 @@ sub main_normal ( ) {
   }
   
   # split で割るためのパターンの設定。
-  my $patSplit = @e ? do{ my$t='('.(join'|',@exu,'.').')';qr/$t/} : qr//o ; # 注: @exuにさらに1文字(.)を追加。さらに括弧でも括っている。
+  my $patSplit = @e ? do{ my$t='('.(join'|',@exu,'.').')';qr/$t/} : qr//o ; # 注: @exuに1文字(.)を追加。さらに括弧でも括っている。
 
   my $header = <> if $o{'='} ; 
   while ( <> ) { 
-    chomp if 0 eq ($o{n}//'') ; # \n にマッチさせる可能性があるため。しかし、^ にマッチさせて集計したいときどうしたら良いだろうか?
+    chomp if 0 eq ($o{n}//'') ; #-n0 で改行文字を除去。
     next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
