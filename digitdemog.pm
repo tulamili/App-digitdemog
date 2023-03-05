@@ -1,6 +1,6 @@
 package App::digitdemog ; 
-our $VERSION = '0.083' ; 
-our $DATE = '2023-03-05T22:28+09:00' ; 
+our $VERSION = '0.084' ; 
+our $DATE = '2023-03-05T23:20+09:00' ; 
 
 =encoding utf8
 
