@@ -17,9 +17,10 @@ use Encode qw [ decode_utf8 ] ;
 use utf8 ; 
 
 GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
-getopts '.:0:1$:=b:g:n:q:u:w:L:R:S', \my%o ;  
+getopts '.:0:1$:=b:g:n:o:q:u:w:L:R:S', \my%o ;  
 
-$o{g} //= 1 ;
+$o{g} //= 1 ; # 例として取り出すために、各頻度に対して何個異なる例を保持するか。
+$o{o} //= 0 ; # 桁の番号を0から始める ことがデフォルトだが、やはり1から始められるようにした。
 my $strime0 = [ gettimeofday ] ;
 my $optu0 = ($o{u}//'') eq 0 ; 
 my $optq0 = ($o{q}//'') eq 0 ;
@@ -157,7 +158,8 @@ sub main_normal ( ) {
     }  
   }
   # 出力
-  say join "\t" , map { UNDERLINE YELLOW $_ } 0 .. $maxlen , 'char' , 'code' , 'freq' , $o{g} ? 'example|..|example' :() ; # 行頭の出力
+
+  say join "\t" , map { UNDERLINE YELLOW $_ } (0+$o{o}) .. ($maxlen+$o{o}) , 'char' , 'code' , 'freq' , $o{g} ? 'example|..|example' :() ; # 行頭の出力
   my %vcate ; $vcate{$_} = 2 for @e ; # omit する
   my @vset ; # 表示する値の配列。順番は、 (1). 引数に渡された正規表現いくつか (2). 非cntrl文字 (3). cntrl文字(4). 各行の終わり
   push @vset , @e[ 1 .. $#e ] ; # (1).
@@ -241,6 +243,7 @@ digitdist
    -g N.  : 数値にピリオドをつけると、該当する文字の、最も右での出現の例で示す。
    -g 0   : 例を表示しない。計算が軽くなることが期待できる。
    -q 0   : 出力で文字をシングルクォーテーションで囲まない。# 廃止 --> (-L2と-L4指定時に適用。)   
+   -o 1   : 桁数の初めを0始まりでなくて、1始まりにする。(origin) (1の代わりに任意の数が指定可能。)
 
 開発上のメモ : 
     * -Lの場合に、-g N の指定により、最小値N個、最大値N個を取り出せるようにしても良いかも。
