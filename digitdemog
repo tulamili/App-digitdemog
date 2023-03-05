@@ -18,7 +18,7 @@ use utf8 ;
 
 GetOptions 'e=s' => \my@e , 'width=i' => \my$width ; # -e で指定されたパターンを何個でも拾う。
 #say CYAN $width ; exit ;
-getopts '.:$:0:12:=b:g:n:o:q:u:w:L:R:S', \my%o ;  
+getopts '.:$:0:12:=b:g:n:o:q:u:w:y:L:R:S', \my%o ;  
 
 $o{o} //= 0 ; # 桁の番号を0から始める ことがデフォルトだが、やはり1から始められるようにした。
 my $dt_start = [ gettimeofday ] ;
@@ -28,16 +28,32 @@ my $optw0 = ($o{w}//'') eq 0 ;
 my $oL2 = ($o{L}//'') eq 2 ; # $optL2 は長すぎるので、ちょっと特例的に短くしてみた
 my $oL4 = ($o{L}//'') eq 4 ;
 
-# 具体例を指示する -g についての処理
+$o{'.'} //= 1 ;
+$o{'$'} //= '$' ;  # 文字の終端を表す記号
+binmode STDOUT, 'utf8' unless $optu0 ;
+
+## 具体例を指示する -g についての処理
 $o{g} //= 1 ; # 例として取り出すために、各頻度に対して何個異なる例を保持するか。
 my $sep = do { my $c = decode_utf8 $o{g} =~s/\d//gr ; $c ne '' ? $c : '|' } ; # 出力表での具体例の区切り文字。
 $o{g} =~ s/\D//g ; 
 $o{g} = 1 if $o{g} eq '' ;
 
-$o{'.'} //= 1 ;
-$o{'$'} //= '$' ;  # 文字の終端を表す記号
-binmode STDOUT, 'utf8' unless $optu0 ;
 
+## -y による頻度のフィルタリングをするための準備 : 
+my @y_ranges = () ; # 出力される値の範囲が指定された場合の挙動を指定する。
+# 次の2個の関数は、出力すべき値の範囲をフィルターの様に指定する。
+& y_init () ;
+sub y_init ( ) { 
+  my @ranges = split /,/o , $o{y} // '' , -1 ; 
+  grep { $_ = $_ . ".." . $_ unless m/\.\./ }  @ranges ; # = split /,/ , $o{y} // '' , -1 ; 
+  do { m/^(\d*)\.\.(\d*)/ ; push @y_ranges , [ $1||1 , $2||'Inf' ] } for @ranges ; 
+}
+sub y_filter ( $ ) { 
+  do { return not 0 if $_->[0] <= $_[0] && $_[0] <= $_->[1] } for @y_ranges ; 
+  return @y_ranges ? not 1 : not 0 ; # 指定が無かった場合はとにかく真を返す。
+}
+  
+## ここからメイン
 sub main () ; 
 * main = $oL2 || $oL4 ? * bylen : * main_normal ; # <-- mainの定義はここである。
 & main ; 
@@ -200,6 +216,7 @@ sub main_normal ( ) {
     #say CYAN join ", " ,  @{$pv[1]} ; exit ;
     @example = map{ backslash $_ , q['] } @example unless 0 eq ($o{b}//'') ; # -b0の指定が無ければ、改行などの文字をエスケープする。
     my $subtotal = sum0 @out ;  # その文字の出現回数 -- @out をさらに加工する前にここで取得。
+    next until y_filter ( $subtotal )  ; 
     do { $out[$_] .= $mark{ $S2{$v}{$_} // '' } // '' if $out[$_] } for 0 .. $#out ; # 数字の後ろにピリオド付加
     @out = map { $_ eq 0 ? $o{0} : $_ } @out if defined $o{0} ;  # 頻度値がゼロの場合の置換
     my $code = do { my $c = substr $v,1,1 ; $v eq "$eol\$" ? 'end' : $vcate{$v} ? '---' : sprintf 'U+%02X', ord $c } ; # 文字コード取得。$vの加工前にここで処理。
@@ -270,6 +287,7 @@ digitdist
    -g 0   : 例を表示しない。計算が軽くなることが期待できる。
    -q 0   : 出力で文字をシングルクォーテーションで囲まない。# 廃止 --> (-L2と-L4指定時に適用。)   
    -o 1   : 桁数の初めを0始まりでなくて、1始まりにする。(origin) (1の代わりに任意の数が指定可能。)
+   -y 数値範囲 : 各文字のパターンの頻度が指定回数のものだけを出力。例 -y 1..3 なら3以下。 3.. なら3以上。2,4,6..8 なら2と4と6,7,8。
 
 開発上のメモ : 
     * -Lの場合に、-g N の指定により、最小値N個、最大値N個を取り出せるようにしても良いかも。
