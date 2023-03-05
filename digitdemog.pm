@@ -1,6 +1,6 @@
 package App::digitdemog ; 
-our $VERSION = '0.081' ; 
-our $DATE = '2023-03-04T23:36+09:00' ; 
+our $VERSION = '0.082' ; 
+our $DATE = '2023-03-05T13:47+09:00' ; 
 
 =encoding utf8
 
@@ -24,7 +24,7 @@ This module provides a Unix-like command `digitdemog'.
 
 digitdemog --help 
 
- Copyright (c) 2021 Toshiyuki SHIMONO. All rights reserved.
+ Copyright (c) 2021-2023 Toshiyuki SHIMONO. All rights reserved.
  This program is free software; you can redistribute it and/or
  modify it under the same terms as Perl itself.
 
