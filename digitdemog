@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# このプログラムの作成者 : 下野寿之 bin4tsv@gmail.com
+# このプログラムの作成者 : 下野寿之 bin4tsv@gmail.com Toshiyuki Shimono
 
 use 5.030 ; 
 use warnings ; 
@@ -9,15 +9,12 @@ use Getopt::Long qw [ GetOptions :config bundling no_ignore_case pass_through ] 
 #Getopt::Long::Configure qw [ bundling ] ; #  1文字のオプションに対して有効。ずらずらつなげられる。
 #Getopt::Long::Configure qw [ no_ignore_case ] ; # 大文字と小文字を区別する。
 #Getopt::Long::Configure qw [ pass_through ] ; # 拾わなかった @ARGV の引数を残してくれるっぽい。posix_defaultの後で書くこと(!)。
-use Scalar::Util qw/looks_like_number/ ; # 5.7.3から
 use Term::ANSIColor qw/:constants color/ ;  $Term::ANSIColor::AUTORESET = 1 ;
-use Time::HiRes qw/sleep usleep gettimeofday tv_interval/ ; # 5.7.3から
+use Time::HiRes qw/gettimeofday tv_interval/ ; # 5.7.3から
 use List::Util qw[ max min first sum0 uniq ] ; 
-use Encode qw [ decode_utf8 encode_utf8 ] ;
-#use utf8 ; 
+use Encode qw [ decode_utf8 ] ;
 
 GetOptions 'e=s' => \my@e , 'width=i' => \my$width ; # -e で指定されたパターンを何個でも拾う。
-#say CYAN $width ; exit ;
 getopts '.:$:0:12:=b:g:n:o:q:u:w:y:L:R:S', \my%o ;  
 
 $o{o} //= 0 ; # 桁の番号を0から始める ことがデフォルトだが、やはり1から始められるようにした。
@@ -30,7 +27,6 @@ my $oL4 = ($o{L}//'') eq 4 ;
 
 $o{'.'} //= 1 ;
 $o{'$'} //= '$' ;  # 文字の終端を表す記号
-#binmode STDIN , ':raw' ;
 binmode STDOUT, 'utf8' unless $optu0 ;
 
 ## 具体例を指示する -g についての処理
@@ -39,7 +35,6 @@ my $sep = do { my $c = $o{g} =~s/\d//gr ; $c = decode_utf8 $c if ! $optu0 ; $c n
 $o{g} =~ s/\D//g ; 
 $o{g} = 1 if $o{g} eq '' ;
 my $header  ; # -1 が指定されたら読み飛ばしの対象となるが、一応保管。(2次情報として標準エラー出力に出す。)
-
 
 ## -y による頻度のフィルタリングをするための準備 : 
 my @y_ranges = () ; # 出力される値の範囲が指定された場合の挙動を指定する。
@@ -110,8 +105,7 @@ sub bylen ( ) {
 sub d3 ($) { $_[0] =~ s/(?<=\d)(?=(\d\d\d)+($|\D))/,/gr } ; # 数を3桁区切りに変換する。
 
 sub majority2 ( @ ) { 
-  # いろんな値を配列で受け取り、頻度2以上のものについて、多い順番に返す。
-  # 最初は、最も頻繁な頻度を持つ値の中から、(ランダムに) 1個返していた。
+  # いろんな値を配列で受け取り、頻度2以上のものについて、多い順番に返す。# 同一の入力でも、同じ頻度ならどっちが優先されるかは不明。
   my %h ; # ヒストグラム
   ++ $h { $_ } for ( @_ ) ;
   my $m = max values %h ; 
