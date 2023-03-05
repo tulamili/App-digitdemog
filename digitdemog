@@ -202,21 +202,18 @@ sub main_normal ( ) {
   push @vset , $e[ 0 ] ;
   my $take = sub ($$) { splice @{$_[1]} , 0, $_[0] } ; # 配列参照arg2からその配列の先頭arg1個取ってくる。
   my $take2 = sub ($$$) { uniq $take->($_[0],$_[1]) , $take->($_[0],$_[2]) } ;# 配列参照2個(arg2,arg3)から、それぞれarg1個取って、uniq する。
-
+  my $ucd = sub ($){ ( sprintf 'U+%06X', ord $_[0] ) =~ s/(00)+((..)+$)/$2/r } ; # Unicode の符号位置を返す。2桁以上の偶数桁になるように。
   for my $v ( @vset ){ # <-- ソート順には注意したい
     my @out = map { $S1{$v}{$_} // 0 } 0 .. ( $maxlen - 1 ) ; 
     my @pvec = grep { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ;  # 何桁目を見るか、そして、優先的にどこから見るか。
-    #my @pv = map { [ @out[@{$_}] ] } [0..$#out] , [reverse 0..$#out] ;  # 何桁目を見るか、そして、優先的にどこから見るか。
     my @pv = map { [ grep { $out[$_] } @{$_} ] } [0..$#out] , [reverse 0..$#out] ;  # 何桁目を見るか、そして、優先的にどこから見るか。
-    #my @example = $take2 -> ( $o{g} , map { my $way = $_ ; [ map{ @{$Gs{$v}{$_}[ $way ]} } @pvec ] } 0,1 ) if $o{g} ;
     my @example = $take2 -> ( $o{g} , map { my $way = $_ ; [ map{ @{$Gs{$v}{$_}[ $way ]} } @{$pv[$way]} ] } 0,1 ) if $o{g} ;
-    #say CYAN join ", " ,  @{$pv[1]} ; exit ;
     @example = map{ backslash $_ , q['] } @example unless 0 eq ($o{b}//'') ; # -b0の指定が無ければ、改行などの文字をエスケープする。
     my $subtotal = sum0 @out ;  # その文字の出現回数 -- @out をさらに加工する前にここで取得。
     next until y_filter ( $subtotal )  ; 
     do { $out[$_] .= $mark{ $S2{$v}{$_} // '' } // '' if $out[$_] } for 0 .. $#out ; # 数字の後ろにピリオド付加
     @out = map { $_ eq 0 ? $o{0} : $_ } @out if defined $o{0} ;  # 頻度値がゼロの場合の置換
-    my $code = do { my $c = substr $v,1,1 ; $v eq "$eol\$" ? 'end' : $vcate{$v} ? '---' : sprintf 'U+%02X', ord $c } ; # 文字コード取得。$vの加工前にここで処理。
+    my $code = do { my $c = substr $v,1,1 ; $v eq "$eol\$" ? 'end' : $vcate{$v} ? '---' : $ucd -> ($c) } ; # 文字コード取得。$vの加工前にここで処理。
     $v = $o{'$'} if $v eq "$eol\$" ; 
     $v = backslash $v , q["] ; 
     push @out , (YELLOW BOLD $v) , $code , (YELLOW $subtotal) ; 
