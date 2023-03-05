@@ -5,10 +5,10 @@
 use 5.030 ; 
 use warnings ; 
 use Getopt::Std ;
-use Getopt::Long qw [ GetOptions ] ; # GetOptionsFromArray ] ;
-Getopt::Long::Configure qw [ bundling ] ; #  1文字のオプションに対して有効。ずらずらつなげられる。
-Getopt::Long::Configure qw [ no_ignore_case ] ; # 大文字と小文字を区別する。
-Getopt::Long::Configure qw [ pass_through ] ; # 拾わなかった @ARGV の引数を残してくれるっぽい。posix_defaultの後で書くこと(!)。
+use Getopt::Long qw [ GetOptions :config bundling no_ignore_case pass_through ] ; # GetOptionsFromArray ] ;
+#Getopt::Long::Configure qw [ bundling ] ; #  1文字のオプションに対して有効。ずらずらつなげられる。
+#Getopt::Long::Configure qw [ no_ignore_case ] ; # 大文字と小文字を区別する。
+#Getopt::Long::Configure qw [ pass_through ] ; # 拾わなかった @ARGV の引数を残してくれるっぽい。posix_defaultの後で書くこと(!)。
 use Scalar::Util qw/looks_like_number/ ; # 5.7.3から
 use Term::ANSIColor qw/:constants color/ ;  $Term::ANSIColor::AUTORESET = 1 ;
 use Time::HiRes qw/sleep usleep gettimeofday tv_interval/ ; # 5.7.3から
@@ -16,7 +16,8 @@ use List::Util qw[ max min first sum0 uniq ] ;
 use Encode qw [ decode_utf8 ] ;
 use utf8 ; 
 
-GetOptions 'e=s' => \my@e ; # -e で指定されたパターンを何個でも拾う。
+GetOptions 'e=s' => \my@e , 'width=i' => \my$width ; # -e で指定されたパターンを何個でも拾う。
+#say CYAN $width ; exit ;
 getopts '.:$:0:12:=b:g:n:o:q:u:w:L:R:S', \my%o ;  
 
 $o{o} //= 0 ; # 桁の番号を0から始める ことがデフォルトだが、やはり1から始められるようにした。
@@ -151,9 +152,11 @@ sub main_normal ( ) {
     next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
+     # ▽ パターンに文字列を分解。
     my @vvec = m/$piecePattern/go ; 
-    $maxlen = @vvec if $maxlen < @vvec ; # 最大長の保管
     push @vvec , $eol ; # 各行をバラバラにした後に、$eolを最後に追加。
+    splice @vvec , $width, if defined $width ; 
+    $maxlen = @vvec if $maxlen < @vvec ; # 最大長の保管
     for my $pos ( 0 .. $#vvec ) {
       my $char = $vvec [ $pos ] ; # 実際の文字(列)。  (パターンにはまだ分類していない。)
       my $v  ; # どのパターンまたは文字として認識するか。(分類されたパターンなのである。)
@@ -177,7 +180,7 @@ sub main_normal ( ) {
   # 出力
 
   my $ex = "example${sep}..${sep}example" ; # 具体例を表す列の表頭をどうするか?
-  say join "\t" , map { UNDERLINE YELLOW $_ } (0+$o{o}) .. ($maxlen+$o{o}) , 'char' , 'code' , 'freq' , $o{g} ? $ex :() ; # 行頭の出力
+  say join "\t" , map { UNDERLINE YELLOW $_ } (0+$o{o}) .. ($maxlen+$o{o}-1) , 'char' , 'code' , 'freq' , $o{g} ? $ex :() ; # 行頭の出力
   my %vcate ; $vcate{$_} = 2 for @e ; # omit する
   my @vset ; # 表示する値の配列。順番は、 (1). 引数に渡された正規表現いくつか (2). 非cntrl文字 (3). cntrl文字(4). 各行の終わり
   push @vset , @e[ 1 .. $#e ] ; # (1).
@@ -188,7 +191,7 @@ sub main_normal ( ) {
   my $take2 = sub ($$$) { uniq $take->($_[0],$_[1]) , $take->($_[0],$_[2]) } ;# 配列参照2個(arg2,arg3)から、それぞれarg1個取って、uniq する。
 
   for my $v ( @vset ){ # <-- ソート順には注意したい
-    my @out = map { $S1{$v}{$_} // 0 } 0 .. $maxlen ; 
+    my @out = map { $S1{$v}{$_} // 0 } 0 .. ( $maxlen - 1 ) ; 
     my @pvec = grep { $out[$_] } $o{g}=~/\.$/o ? reverse 0..$#out : 0..$#out ;  # 何桁目を見るか、そして、優先的にどこから見るか。
     #my @pv = map { [ @out[@{$_}] ] } [0..$#out] , [reverse 0..$#out] ;  # 何桁目を見るか、そして、優先的にどこから見るか。
     my @pv = map { [ grep { $out[$_] } @{$_} ] } [0..$#out] , [reverse 0..$#out] ;  # 何桁目を見るか、そして、優先的にどこから見るか。
@@ -256,6 +259,7 @@ digitdist
    -. 0    : 通常出力表の値で "同じ数." と表示された値は、全く共通する行に由来することを示すが、その出力の仕方を抑制。
    -. N    : 出力表の異なる頻度の値ごとに、どれが全く共通する行に由来するのかN個まで表示。未指定なら1。頻度の後にピリオドが付き、さらに0が最大N-1個付く。
    -e str : このオプションは何回も指定できる。strは正規表現であり、最初のパターンにマッチするものを計数対象にする。
+   --width N : 出力表の頻度の値の部分が最大N列に制限される。この指定は、「例」には影響しない。
 
   出力へ影響するオプション : 
    -0 str : 出力のゼロを別の文字列strに置換する。
