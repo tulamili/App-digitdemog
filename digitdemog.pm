@@ -24,7 +24,7 @@ This module provides a Unix-like command `digitdemog'.
 
 digitdemog --help 
 
- Copyright (c) 2021-2023 Toshiyuki SHIMONO. All rights reserved.
+ Copyright (c) 2023 Toshiyuki SHIMONO. All rights reserved.
  This program is free software; you can redistribute it and/or
  modify it under the same terms as Perl itself.
 
