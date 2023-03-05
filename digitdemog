@@ -13,7 +13,7 @@ use Scalar::Util qw/looks_like_number/ ; # 5.7.3から
 use Term::ANSIColor qw/:constants color/ ;  $Term::ANSIColor::AUTORESET = 1 ;
 use Time::HiRes qw/sleep usleep gettimeofday tv_interval/ ; # 5.7.3から
 use List::Util qw[ max min first sum0 uniq ] ; 
-use Encode qw [ decode_utf8 ] ;
+use Encode qw [ decode_utf8 encode_utf8 ] ;
 #use utf8 ; 
 
 GetOptions 'e=s' => \my@e , 'width=i' => \my$width ; # -e で指定されたパターンを何個でも拾う。
@@ -30,11 +30,12 @@ my $oL4 = ($o{L}//'') eq 4 ;
 
 $o{'.'} //= 1 ;
 $o{'$'} //= '$' ;  # 文字の終端を表す記号
+#binmode STDIN , ':raw' ;
 binmode STDOUT, 'utf8' unless $optu0 ;
 
 ## 具体例を指示する -g についての処理
 $o{g} //= 1 ; # 例として取り出すために、各頻度に対して何個異なる例を保持するか。
-my $sep = do { my $c = decode_utf8 $o{g} =~s/\d//gr ; $c ne '' ? $c : '|' } ; # 出力表での具体例の区切り文字。
+my $sep = do { my $c = $o{g} =~s/\d//gr ; $c = decode_utf8 $c if ! $optu0 ; $c ne '' ? $c : '|' } ; # 出力表での具体例の区切り文字。
 $o{g} =~ s/\D//g ; 
 $o{g} = 1 if $o{g} eq '' ;
 my $header  ; # -1 が指定されたら読み飛ばしの対象となるが、一応保管。(2次情報として標準エラー出力に出す。)
