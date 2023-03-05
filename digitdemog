@@ -129,7 +129,8 @@ sub main_normal ( ) {
   my $eol = "EOL" . int rand 8 ; # 各行の終わりを示す。## saikoro -g10,3 でいろいろ試した。
 
   @e = map { decode_utf8 $_ } @e unless $optu0  ;
-  unshift @e , "$eol\$" ;  # 正規表現パターン群に $eol を 最初に 追加。<-- - 
+  unshift @e , "$eol\$" ;  # 正規表現パターン群に $eol を 最初に 追加。 # 「行末」は頻度が多いので最初に持ってきた。
+  #push @e , "$eol\$" ;  # 正規表現パターン群に $eol を 最後に 追加。# ここは、unshift でも push でも良い。
   my @eqr ; # 「e をqrされた 」により名付けた。
   my @exu ; # 「eにおいて、エスケープ(escape)してユニコード(unicode)で表した部分がある」により名付けた
   for ( 0 .. $#e ) { 
@@ -142,7 +143,7 @@ sub main_normal ( ) {
   }
   
   # split で割るためのパターンの設定。
-  my $patSplit = @e ? do{ my$t='('.(join'|',@exu,'.').')';qr/$t/} : qr//o ; # 注: @exuに1文字(.)を追加。さらに括弧でも括っている。
+  my $piecePattern = @e ? do{ my$t=join'|',@exu,'.','\n';qr/$t/o} : qr//o ; # @exuに1文字(.)と改行文字を追加した。
 
   my $header = <> if $o{'='} ; 
   while ( <> ) { 
@@ -150,13 +151,14 @@ sub main_normal ( ) {
     next if $freq{$_} ++ && $o{1} ; # && の前後の順序に注意
     s/\r$// unless $optw0 ;    
     $_ = decode_utf8 $_ unless $optu0 ;
-    my @vvec = grep { $_ ne '' } split $patSplit , $_ , 0 ; # <-- - 区切る
+    my @vvec = m/$piecePattern/go ; 
     $maxlen = @vvec if $maxlen < @vvec ; # 最大長の保管
     push @vvec , $eol ; # 各行をバラバラにした後に、$eolを最後に追加。
     for my $pos ( 0 .. $#vvec ) {
       my $char = $vvec [ $pos ] ; # 実際の文字(列)。  (パターンにはまだ分類していない。)
       my $v  ; # どのパターンまたは文字として認識するか。(分類されたパターンなのである。)
-      $char =~ $eqr[$_] and do{ $v = $e[$_] ; last } for 0..$#e ; # 指定したパターンの数が多いと遅くなるであろう。頻度の高いパターンを先に置くと早くなる。
+       # ▽ どのパターンにマッチしたかを$vに格納する。次の2行のコードで。
+      $char =~ $eqr[$_] and do { $v = $e[$_] ; last } for 0 .. $#e ; # 指定したパターンの数が多いと遅くなるであろう。頻度の高いパターンを先に置くと早くなる。
       $v //= "'$vvec[$pos]'" ; # 前行の処理で当てはまらない場合。クォーテーションを付加するようにした。
       $S1 { $v } { $pos } ++ ; 
       $S2 { $v } { $pos } .= "$.+" if $o{'.'} ; # <-- $S2{..}で、その「文字」がその桁で現れた、「行番号集合」L が結果的に生成される。
